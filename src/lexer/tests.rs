@@ -27,7 +27,8 @@ fn test_next_token_basic() {
 
 #[test]
 fn test_next_token_adv() {
-    let input = String::from(r#"
+    let input = String::from(
+        r#"
         let five = 5;
         let ten = 10;
 
@@ -36,23 +37,24 @@ fn test_next_token_adv() {
         };
 
         let result = add(five, ten);
-    "#);
+    "#,
+    );
 
     let tests = vec![
-        (token!(LET), "LET"),
+        (token!(LET), "let"),
         (token!(IDENT("five")), "five"),
         (token!(=), "="),
         (token!(INT(5)), "5"),
         (token!(;), ";"),
-        (token!(LET), "LET"),
+        (token!(LET), "let"),
         (token!(IDENT("ten")), "ten"),
         (token!(=), "="),
         (token!(INT(10)), "10"),
         (token!(;), ";"),
-        (token!(LET), "LET"),
+        (token!(LET), "let"),
         (token!(IDENT("add")), "add"),
         (token!(=), "="),
-        (token!(FUNCTION), "FUNCTION"),
+        (token!(FUNCTION), "fn"),
         (token!('('), "("),
         (token!(IDENT("x")), "x"),
         (token!(,), ","),
@@ -65,7 +67,7 @@ fn test_next_token_adv() {
         (token!(;), ";"),
         (token!('}'), "}"),
         (token!(;), ";"),
-        (token!(LET), "LET"),
+        (token!(LET), "let"),
         (token!(IDENT("result")), "result"),
         (token!(=), "="),
         (token!(IDENT("add")), "add"),
@@ -89,10 +91,12 @@ fn test_next_token_adv() {
 
 #[test]
 fn test_next_token_operators() {
-    let input = String::from(r#"
+    let input = String::from(
+        r#"
         !-/*5;
         5 < 10 > 5;
-    "#);
+    "#,
+    );
 
     let tests = vec![
         (token!(!), "!"),
@@ -121,30 +125,32 @@ fn test_next_token_operators() {
 
 #[test]
 fn test_next_token_conditions() {
-    let input = String::from(r#"
+    let input = String::from(
+        r#"
         if (5 < 10) {
             return true;
         } else {
             return false;
         }
-    "#);
+    "#,
+    );
 
     let tests = vec![
-        (token!(IF), "IF"),
+        (token!(IF), "if"),
         (token!('('), "("),
         (token!(INT(5)), "5"),
         (token!(<), "<"),
         (token!(INT(10)), "10"),
         (token!(')'), ")"),
         (token!('{'), "{"),
-        (token!(RETURN), "RETURN"),
-        (token!(TRUE), "TRUE"),
+        (token!(RETURN), "return"),
+        (token!(TRUE), "true"),
         (token!(;), ";"),
         (token!('}'), "}"),
-        (token!(ELSE), "ELSE"),
+        (token!(ELSE), "else"),
         (token!('{'), "{"),
-        (token!(RETURN), "RETURN"),
-        (token!(FALSE), "FALSE"),
+        (token!(RETURN), "return"),
+        (token!(FALSE), "false"),
         (token!(;), ";"),
         (token!('}'), "}"),
         (token!(EOF), "EOF"),
@@ -161,10 +167,12 @@ fn test_next_token_conditions() {
 
 #[test]
 fn test_next_token_equality() {
-    let input = String::from(r#"
+    let input = String::from(
+        r#"
         10 == 10;
         10 != 9;
-    "#);
+    "#,
+    );
 
     let tests = vec![
         (token!(INT(10)), "10"),

@@ -1,7 +1,11 @@
+#![allow(dead_code)]
+
 #[macro_use]
 mod token;
 mod lexer;
 mod repl;
+#[macro_use]
+mod parser;
 
 use crate::repl::start;
 use whoami::username;

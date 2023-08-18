@@ -18,6 +18,7 @@ impl Lexer {
             read_position: 0,
             ch: '\0',
         };
+        // Read the first character
         lexer.read_char();
         return lexer;
     }
@@ -62,7 +63,6 @@ impl Lexer {
                 self.read_char();
                 token!(!=)
             }
-
             // Read single character tokens
             '=' => token!(=),
             '+' => token!(+),
@@ -79,10 +79,8 @@ impl Lexer {
             '{' => token!('{'),
             '}' => token!('}'),
             '\0' => token!(EOF),
-
             // Read identifier
             c if is_letter(c) => return self.read_identifier(),
-
             // Read number
             c if c.is_ascii_digit() => return self.read_number(),
             _ => token!(ILLEGAL),

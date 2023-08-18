@@ -39,7 +39,7 @@ pub enum Token {
     False,
     If,
     Else,
-    Return
+    Return,
 }
 
 impl Display for Token {
@@ -48,8 +48,8 @@ impl Display for Token {
         match self {
             token!(ILLEGAL) => write!(f, "ILLEGAL"),
             token!(EOF) => write!(f, "EOF"),
-            Token::Ident(value) => write!(f, "IDENT({})", value),
-            Token::Int(value) => write!(f, "INT({})", value),
+            Token::Ident(value) => write!(f, "{value}"),
+            Token::Int(value) => write!(f, "{value}"),
             token!(=) => write!(f, "="),
             token!(+) => write!(f, "+"),
             token!(-) => write!(f, "-"),
@@ -66,13 +66,13 @@ impl Display for Token {
             token!('}') => write!(f, "}}"),
             token!('(') => write!(f, "("),
             token!(')') => write!(f, ")"),
-            token!(FUNCTION) => write!(f, "FUNCTION"),
-            token!(LET) => write!(f, "LET"),
-            token!(TRUE) => write!(f, "TRUE"),
-            token!(FALSE) => write!(f, "FALSE"),
-            token!(IF) => write!(f, "IF"),
-            token!(ELSE) => write!(f, "ELSE"),
-            token!(RETURN) => write!(f, "RETURN"),
+            token!(FUNCTION) => write!(f, "fn"),
+            token!(LET) => write!(f, "let"),
+            token!(TRUE) => write!(f, "true"),
+            token!(FALSE) => write!(f, "false"),
+            token!(IF) => write!(f, "if"),
+            token!(ELSE) => write!(f, "else"),
+            token!(RETURN) => write!(f, "return"),
         }
     }
 }
@@ -94,31 +94,85 @@ pub fn lookup_ident(ident: &str) -> Token {
 // Macro to make it easier to create tokens
 #[macro_export]
 macro_rules! token {
-    (ILLEGAL) => { Token::Illegal };
-    (EOF) => { Token::Eof };
-    (IDENT($value:expr)) => { Token::Ident($value.to_string()) };
-    (INT($value:expr)) => { Token::Int($value.to_string()) };
-    (=) => { Token::Assign };
-    (+) => { Token::Plus };
-    (-) => { Token::Minus };
-    (!) => { Token::Bang };
-    (*) => { Token::Asterisk };
-    (/) => { Token::Slash };
-    (==) => { Token::Eq };
-    (!=) => { Token::NotEq };
-    (<) => { Token::Lt };
-    (>) => { Token::Gt };
-    (,) => { Token::Comma };
-    (;) => { Token::Semicolon };
-    ('{') => { Token::LBrace };
-    ('}') => { Token::RBrace };
-    ('(') => { Token::LParen };
-    (')') => { Token::RParen };
-    (FUNCTION) => { Token::Function };
-    (LET) => { Token::Let };
-    (TRUE) => { Token::True };
-    (FALSE) => { Token::False };
-    (IF) => { Token::If };
-    (ELSE) => { Token::Else };
-    (RETURN) => { Token::Return };
+    (ILLEGAL) => {
+        Token::Illegal
+    };
+    (EOF) => {
+        Token::Eof
+    };
+    (IDENT($value:expr)) => {
+        Token::Ident($value.to_string())
+    };
+    (INT($value:expr)) => {
+        Token::Int($value.to_string())
+    };
+    (=) => {
+        Token::Assign
+    };
+    (+) => {
+        Token::Plus
+    };
+    (-) => {
+        Token::Minus
+    };
+    (!) => {
+        Token::Bang
+    };
+    (*) => {
+        Token::Asterisk
+    };
+    (/) => {
+        Token::Slash
+    };
+    (==) => {
+        Token::Eq
+    };
+    (!=) => {
+        Token::NotEq
+    };
+    (<) => {
+        Token::Lt
+    };
+    (>) => {
+        Token::Gt
+    };
+    (,) => {
+        Token::Comma
+    };
+    (;) => {
+        Token::Semicolon
+    };
+    ('{') => {
+        Token::LBrace
+    };
+    ('}') => {
+        Token::RBrace
+    };
+    ('(') => {
+        Token::LParen
+    };
+    (')') => {
+        Token::RParen
+    };
+    (FUNCTION) => {
+        Token::Function
+    };
+    (LET) => {
+        Token::Let
+    };
+    (TRUE) => {
+        Token::True
+    };
+    (FALSE) => {
+        Token::False
+    };
+    (IF) => {
+        Token::If
+    };
+    (ELSE) => {
+        Token::Else
+    };
+    (RETURN) => {
+        Token::Return
+    };
 }

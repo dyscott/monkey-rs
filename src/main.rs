@@ -6,13 +6,18 @@ mod repl;
 #[macro_use]
 mod parser;
 mod eval;
+mod run;
 
 use crate::repl::start;
-use whoami::username;
+use std::env::args;
 
 fn main() {
-    let user = username();
-    println!("Hello {}! This is the Monkey programming language!", user);
-    println!("Feel free to type in commands");
-    start(&mut std::io::stdin(), &mut std::io::stdout()).unwrap();
+    // Check for file argument
+    let args: Vec<String> = args().collect();
+    if args.len() > 1 {
+        run::run_file(args[1].clone()).unwrap();
+        return;
+    }
+
+    start(&mut std::io::stdin()).unwrap();
 }

@@ -3,60 +3,55 @@ use crate::parser::Parser;
 use crate::eval::Evaluator;
 
 use anyhow::Result;
-use std::io::{Stdin, Stdout, Write};
+use std::io::{Stdin, stdout, Write};
+use whoami::username;
 
 const PROMPT: &str = ">> ";
-const MONKEY_FACE: &str = r#"            __,__
-   .--.  .-"     "-.  .--.
-  / .. \/  .-. .-.  \/ .. \
- | |  '|  /   Y   \  |'  | |
- | \   \  \ 0 | 0 /  /   / |
-  \ '- ,\.-"""""""-./, -' /
-   ''-' /_   ^ ^   _\ '-''
-       |  \._   _./  |
-       \   \ '~' /   /
-        '._ '-=-' _.'
-           '-----'
-"#;
 
-pub fn start(input: &mut Stdin, output: &mut Stdout) -> Result<()> {
+pub fn start(input: &mut Stdin) -> Result<()> {
     let mut buffer = String::new();
+
+    let user = username();
+    println!("Hello {}! This is the Monkey programming language!", user);
+    println!("Feel free to type in commands or 'exit' to exit the REPL");
 
     let mut evaluator = Evaluator::default();
     loop {
+        // Prompt and read input
         buffer.clear();
-        output.write_all(PROMPT.as_bytes())?;
-        output.flush()?;
+        print!("{}", PROMPT);
+        stdout().flush()?;
         input.read_line(&mut buffer)?;
 
+        // Check for exit
+        if buffer.trim() == "exit" {
+            break;
+        }
+
+        // Parse the input
         let lexer = Lexer::new(buffer.clone());
         let mut parser = Parser::new(lexer);
-
         let program = parser.parse_program();
-
         if !parser.errors.is_empty() {
-            print_parser_errors(output, parser.errors)?;
+            println!("Error(s) occurred during parsing:");
+            for error in parser.errors {
+                println!("\tError: {}", error);
+            }
             continue;
         }
 
+        // Evaluate the input
         let evaluated = evaluator.eval(&program);
         match evaluated {
             Ok(evaluated) => {
-                output.write_all(format!("{}\n", evaluated).as_bytes())?;
+                println!("{}\n", evaluated);
             }
             Err(error) => {
-                output.write_all(format!("ERROR: {}\n", error).as_bytes())?;
+                println!("Error occurred during evaluation:");
+                println!("\tError: {}", error)
             }
         }
     }
-}
 
-pub fn print_parser_errors(output: &mut Stdout, errors: Vec<String>) -> Result<()> {
-    output.write_all(MONKEY_FACE.as_bytes())?;
-    output.write_all(b"Whoops! We ran into some monkey business here!\n")?;
-    output.write_all(b" parser errors:\n")?;
-    for error in errors {
-        output.write_all(format!("\t{}\n", error).as_bytes())?;
-    }
     Ok(())
 }

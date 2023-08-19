@@ -6,6 +6,7 @@ mod lexer;
 mod repl;
 #[macro_use]
 mod parser;
+mod eval;
 
 use crate::repl::start;
 use whoami::username;

@@ -2,8 +2,10 @@ use std::fmt::{self, Display, Formatter};
 
 use crate::token::Token;
 
-pub enum Node {
-    Program(Program),
+pub enum Node<'a> {
+    Program(&'a Program),
+    Statement(&'a Statement),
+    Expression(&'a Expression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -70,7 +72,11 @@ impl Display for Expression {
                 write!(f, "({} {} {})", left, op, right)
             }
             Expression::If(condition, consequence, Some(alternative)) => {
-                write!(f, "if ({}) {{{}}} else {{{}}}", condition, consequence, alternative)
+                write!(
+                    f,
+                    "if ({}) {{{}}} else {{{}}}",
+                    condition, consequence, alternative
+                )
             }
             Expression::If(condition, consequence, None) => {
                 write!(f, "if ({}) {{{}}}", condition, consequence)

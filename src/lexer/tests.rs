@@ -28,7 +28,7 @@ fn test_next_token_basic() {
 #[test]
 fn test_next_token_adv() {
     let input = String::from(
-        r#"
+        "
         let five = 5;
         let ten = 10;
 
@@ -37,7 +37,7 @@ fn test_next_token_adv() {
         };
 
         let result = add(five, ten);
-    "#,
+    ",
     );
 
     let tests = vec![
@@ -92,10 +92,10 @@ fn test_next_token_adv() {
 #[test]
 fn test_next_token_operators() {
     let input = String::from(
-        r#"
+        "
         !-/*5;
         5 < 10 > 5;
-    "#,
+    ",
     );
 
     let tests = vec![
@@ -126,13 +126,13 @@ fn test_next_token_operators() {
 #[test]
 fn test_next_token_conditions() {
     let input = String::from(
-        r#"
+        "
         if (5 < 10) {
             return true;
         } else {
             return false;
         }
-    "#,
+    ",
     );
 
     let tests = vec![
@@ -168,10 +168,10 @@ fn test_next_token_conditions() {
 #[test]
 fn test_next_token_equality() {
     let input = String::from(
-        r#"
+        "
         10 == 10;
         10 != 9;
-    "#,
+    ",
     );
 
     let tests = vec![

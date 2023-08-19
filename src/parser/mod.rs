@@ -389,7 +389,7 @@ impl Parser {
             token!('(') => self.parse_call(left.clone()),
             _ => Err(anyhow!(
                 "No infix parse function for {} found",
-                self.cur_token
+                self.peek_token
             )),
         }
     }

@@ -1,5 +1,6 @@
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::eval::Evaluator;
 
 use anyhow::Result;
 use std::io::{Stdin, Stdout, Write};
@@ -21,6 +22,7 @@ const MONKEY_FACE: &str = r#"            __,__
 pub fn start(input: &mut Stdin, output: &mut Stdout) -> Result<()> {
     let mut buffer = String::new();
 
+    let mut evaluator = Evaluator::default();
     loop {
         buffer.clear();
         output.write_all(PROMPT.as_bytes())?;
@@ -31,13 +33,21 @@ pub fn start(input: &mut Stdin, output: &mut Stdout) -> Result<()> {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
+
         if !parser.errors.is_empty() {
             print_parser_errors(output, parser.errors)?;
             continue;
         }
 
-        output.write_all(format!("{:?}\n", program).as_bytes())?;
-        output.flush()?;
+        let evaluated = evaluator.eval(&program);
+        match evaluated {
+            Ok(evaluated) => {
+                output.write_all(format!("{}\n", evaluated).as_bytes())?;
+            }
+            Err(error) => {
+                output.write_all(format!("ERROR: {}\n", error).as_bytes())?;
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
-pub mod environment;
-pub mod object;
+mod environment;
+mod object;
+mod builtins;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -229,7 +230,10 @@ impl Evaluator {
     fn eval_identifier_expression(&mut self, name: &String) -> Result<Object> {
         match self.env.borrow().get(name) {
             Some(value) => Ok(value.clone()),
-            None => Err(anyhow!("identifier not found: {}", name)),
+            None => match builtins::get_builtin(name) {
+                Some(builtin) => Ok(Object::BuiltInFunction(builtin)),
+                None => Err(anyhow!("identifier not found: {}", name)),
+            },
         }
     }
 
@@ -248,6 +252,8 @@ impl Evaluator {
         // Get the function's parameters, body, and environment
         let (params, body, env) = match function {
             Object::Function(params, body, env) => (params, body, env),
+            // Built-in functions are called directly
+            Object::BuiltInFunction(builtin) => return builtin(args),
             _ => return Err(anyhow!("not a function: {}", function.type_name())),
         };
 

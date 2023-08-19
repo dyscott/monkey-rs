@@ -158,7 +158,7 @@ fn test_error_handling() {
             "unknown operator: BOOLEAN + BOOLEAN",
         ),
         ("foobar", "identifier not found: foobar"),
-        ("\"Hello\" - \"World\"", "unknown operator: STRING - STRING")
+        ("\"Hello\" - \"World\"", "unknown operator: STRING - STRING"),
     ];
 
     for (input, expected) in tests {
@@ -243,5 +243,30 @@ fn test_string_comparison() {
     for (input, expected) in tests {
         let evaluated = eval_test(input.to_string()).unwrap();
         assert_eq!(evaluated, Object::Boolean(expected));
+    }
+}
+
+#[test]
+fn test_builtin_functions() {
+    let tests = vec![
+        ("len(\"\")", Ok(Object::Integer(0))),
+        ("len(\"four\")", Ok(Object::Integer(4))),
+        ("len(\"hello world\")", Ok(Object::Integer(11))),
+        (
+            "len(1)",
+            Err(anyhow!("argument to `len` not supported, got INTEGER")),
+        ),
+        (
+            "len(\"one\", \"two\")",
+            Err(anyhow!("wrong number of arguments. got=2, want=1")),
+        ),
+    ];
+
+    for (input, expected) in tests {
+        let evaluated = eval_test(input.to_string());
+        match expected {
+            Ok(expected) => assert_eq!(evaluated.unwrap(), expected),
+            Err(expected) => assert!(matches!(evaluated, Err(err) if err.to_string() == expected.to_string())),
+        }
     }
 }

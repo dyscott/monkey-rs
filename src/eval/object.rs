@@ -3,6 +3,7 @@ use std::{fmt::{self, Display, Formatter}, cell::RefCell, rc::Rc};
 use crate::parser::ast::Statement;
 
 use super::environment::Environment;
+use super::builtins::BuiltInFunction;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -11,6 +12,7 @@ pub enum Object {
     String(String),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Box<Statement>, Rc<RefCell<Environment>>),
+    BuiltInFunction(BuiltInFunction),
     Null,
 }
 
@@ -34,6 +36,9 @@ impl Display for Object {
                 let params = params.join(", ");
                 write!(f, "fn({}) {{\n{}\n}}", params, body)
             }
+            Object::BuiltInFunction(_) => {
+                write!(f, "builtin function")
+            }
             Object::Null => {
                 write!(f, "null")
             }
@@ -55,8 +60,9 @@ impl Object {
             Object::Boolean(_) => "BOOLEAN",
             Object::String(_) => "STRING",
             Object::ReturnValue(_) => "RETURN_VALUE",
-            Object::Null => "NULL",
             Object::Function(_, _, _) => "FUNCTION_OBJ",
+            Object::BuiltInFunction(_) => "BUILTIN",
+            Object::Null => "NULL",
         }
         .to_string()
     }

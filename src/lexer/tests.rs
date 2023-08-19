@@ -284,3 +284,31 @@ fn test_next_token_slice() {
         assert_eq!(token.to_string(), expect.1.to_string());
     }
 }
+
+#[test]
+fn test_next_token_hash() {
+    let input = String::from(
+        "
+        {\"foo\": \"bar\"};
+        ",
+    );
+
+    let tests = vec![
+        (token!('{'), "{"),
+        (token!(STRING("foo")), "foo"),
+        (token!(:), ":"),
+        (token!(STRING("bar")), "bar"),
+        (token!('}'), "}"),
+        (token!(;), ";"),
+        (token!(EOF), "EOF"),
+    ];
+
+    let mut lexer = Lexer::new(input);
+
+    for expect in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expect.0);
+        assert_eq!(token.to_string(), expect.1.to_string());
+    }
+}
+

@@ -1,3 +1,4 @@
+use crate::eval::object::HashKey;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use anyhow::Result;
@@ -159,6 +160,10 @@ fn test_error_handling() {
         ),
         ("foobar", "identifier not found: foobar"),
         ("\"Hello\" - \"World\"", "unknown operator: STRING - STRING"),
+        (
+            "{\"name\": \"Monkey\"}[fn(x) { x }];",
+            "unusable as hash key: FUNCTION",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -262,16 +267,29 @@ fn test_builtin_functions() {
         ),
         ("len([1, 2, 3])", Ok(Object::Integer(3))),
         ("len([])", Ok(Object::Integer(0))),
+        ("puts(\"hello\", \"world!\")", Ok(Object::Null)),
         ("first([1, 2, 3])", Ok(Object::Integer(1))),
         ("first([])", Ok(Object::Null)),
-		("first(1)", Err(anyhow!("argument to `first` must be ARRAY, got INTEGER"))),
-		("last([1, 2, 3])", Ok(Object::Integer(3))),
-		("last([])", Ok(Object::Null)),
-		("last(1)", Err(anyhow!("argument to `last` must be ARRAY, got INTEGER"))),
-		("rest([1, 2, 3])", Ok(Object::Array(vec![Object::Integer(2), Object::Integer(3)]))),
-		("rest([])", Ok(Object::Null)),
-		("push([], 1)", Ok(Object::Array(vec![Object::Integer(1)]))),
-		("push(1, 1)", Err(anyhow!("argument to `push` must be ARRAY, got INTEGER"))),
+        (
+            "first(1)",
+            Err(anyhow!("argument to `first` must be ARRAY, got INTEGER")),
+        ),
+        ("last([1, 2, 3])", Ok(Object::Integer(3))),
+        ("last([])", Ok(Object::Null)),
+        (
+            "last(1)",
+            Err(anyhow!("argument to `last` must be ARRAY, got INTEGER")),
+        ),
+        (
+            "rest([1, 2, 3])",
+            Ok(Object::Array(vec![Object::Integer(2), Object::Integer(3)])),
+        ),
+        ("rest([])", Ok(Object::Null)),
+        ("push([], 1)", Ok(Object::Array(vec![Object::Integer(1)]))),
+        (
+            "push(1, 1)",
+            Err(anyhow!("argument to `push` must be ARRAY, got INTEGER")),
+        ),
     ];
 
     for (input, expected) in tests {
@@ -377,6 +395,61 @@ fn test_string_indexing() {
         ("\"Hello\"[1:4]", Object::String("ell".to_string())),
         ("\"Hello\"[1:5]", Object::String("ello".to_string())),
         ("\"Hello\"[1:6]", Object::String("ello".to_string())),
+    ];
+
+    for (input, expected) in tests {
+        let evaluated = eval_test(input.to_string()).unwrap();
+        assert_eq!(evaluated, expected);
+    }
+}
+
+#[test]
+fn test_hash_literals() {
+    let input = String::from(
+        "
+        let two = \"two\";
+        {
+            \"one\": 10 - 9,
+            two: 1 + 1,
+            \"thr\" + \"ee\": 6 / 2,
+            4: 4,
+            true: 5,
+            false: 6
+        }
+        ",
+    );
+
+    let tests = vec![
+        (Object::String("one".to_string()), Object::Integer(1)),
+        (Object::String("two".to_string()), Object::Integer(2)),
+        (Object::String("three".to_string()), Object::Integer(3)),
+        (Object::Integer(4), Object::Integer(4)),
+        (Object::Boolean(true), Object::Integer(5)),
+        (Object::Boolean(false), Object::Integer(6)),
+    ];
+
+    let evaluated = eval_test(input).unwrap();
+    let hash = match evaluated {
+        Object::Hash(hash) => hash,
+        _ => panic!("expected hash, got {}", evaluated),
+    };
+
+    for (key, value) in tests {
+        let key: Option<HashKey> = key.into();
+        assert_eq!(*hash.get(&key.unwrap()).unwrap(), value);
+    }
+}
+
+#[test]
+fn test_hash_index() {
+    let tests = vec![
+        ("{\"foo\": 5}[\"foo\"]", Object::Integer(5)),
+        ("{\"foo\": 5}[\"bar\"]", Object::Null),
+        ("let key = \"foo\"; {\"foo\": 5}[key]", Object::Integer(5)),
+        ("{}[\"foo\"]", Object::Null),
+        ("{5: 5}[5]", Object::Integer(5)),
+        ("{true: 5}[true]", Object::Integer(5)),
+        ("{false: 5}[false]", Object::Integer(5)),
     ];
 
     for (input, expected) in tests {

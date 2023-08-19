@@ -10,6 +10,7 @@ pub fn get_builtin(name: &String) -> Option<BuiltInFunction> {
         "last" => Some(last),
         "rest" => Some(rest),
         "push" => Some(push),
+        "puts" => Some(puts),
         _ => None,
     }
 }
@@ -87,4 +88,11 @@ fn push(args: Vec<Object>) -> Result<Object> {
         }
         _ => Err(anyhow!("argument to `push` must be ARRAY, got {}", args[0].type_name())),
     }
+}
+
+fn puts(args: Vec<Object>) -> Result<Object> {
+    for arg in args {
+        println!("{}", arg);
+    }
+    Ok(Object::Null)
 }

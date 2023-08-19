@@ -201,6 +201,7 @@ impl Parser {
             token!(TRUE) => self.parse_boolean(true),
             token!(FALSE) => self.parse_boolean(false),
             token!('[') => self.parse_array(),
+            token!('{') => self.parse_hash(),
             token!(!) | token!(-) => self.parse_prefix_expression(),
             token!('(') => self.parse_group(),
             token!(IF) => self.parse_if(),
@@ -239,6 +240,52 @@ impl Parser {
         // Parse the array elements
         let elements = self.parse_expressions(token!(']'))?;
         Ok(Expression::Array(elements))
+    }
+
+    // Parse a hash
+    fn parse_hash(&mut self) -> Result<Expression> {
+        let mut pairs = Vec::new();
+
+        // Parse the hash pairs
+        while self.peek_token != token!('}') {
+            self.next_token();
+            let key = self.parse_expression(Precedence::Lowest)?;
+
+            // Parse the colon
+            if self.peek_token != token!(:) {
+                return Err(anyhow!(
+                    "Expected next token to be :, got {:?} instead",
+                    self.peek_token
+                ));
+            }
+            self.next_token();
+
+            self.next_token();
+            let value = self.parse_expression(Precedence::Lowest)?;
+
+            pairs.push((key, value));
+
+            // Parse the comma
+            if self.peek_token != token!(,) && self.peek_token != token!('}') {
+                return Err(anyhow!(
+                    "Expected next token to be , or }} got {:?} instead",
+                    self.peek_token
+                ));
+            } else if self.peek_token == token!(,) {
+                self.next_token();
+            }
+        }
+
+        // Parse the closing brace
+        if self.peek_token != token!('}') {
+            return Err(anyhow!(
+                "Expected next token to be }} got {:?} instead",
+                self.peek_token
+            ));
+        }
+        self.next_token();
+
+        Ok(Expression::Hash(pairs))
     }
 
     // Parse a prefix expression
@@ -348,29 +395,11 @@ impl Parser {
     fn parse_function_parameters(&mut self) -> Result<Vec<String>> {
         let mut parameters = Vec::new();
 
-        // Zero parameters
-        if self.peek_token == token!(')') {
+        // Parse the parameters
+        while self.peek_token != token!(')') {
             self.next_token();
-            return Ok(parameters);
-        }
 
-        self.next_token();
-
-        // Parse the first parameter
-        match self.cur_token {
-            Token::Ident(ref value) => parameters.push(value.clone()),
-            _ => {
-                return Err(anyhow!(
-                    "Expected next token to be IDENT, got {:?} instead",
-                    self.cur_token
-                ))
-            }
-        };
-
-        // Parse the remaining parameters
-        while self.peek_token == token!(,) {
-            self.next_token();
-            self.next_token();
+            // Parse the parameter name
             match self.cur_token {
                 Token::Ident(ref value) => parameters.push(value.clone()),
                 _ => {
@@ -380,6 +409,16 @@ impl Parser {
                     ))
                 }
             };
+
+            // Parse the comma
+            if self.peek_token != token!(,) && self.peek_token != token!(')') {
+                return Err(anyhow!(
+                    "Expected next token to be , or ) got {:?} instead",
+                    self.peek_token
+                ));
+            } else if self.peek_token == token!(,) {
+                self.next_token();
+            }
         }
 
         // Parse the closing parenthesis
@@ -398,23 +437,24 @@ impl Parser {
     fn parse_expressions(&mut self, end: Token) -> Result<Vec<Expression>> {
         let mut expressions = Vec::new();
 
-        // Zero expressions
-        if self.peek_token == end {
-            self.next_token();
-            return Ok(expressions);
-        }
-        self.next_token();
-
-        // Parse the first expression
-        let argument = self.parse_expression(Precedence::Lowest)?;
-        expressions.push(argument);
-
         // Parse the remaining expressions
-        while self.peek_token == token!(,) {
+        while self.peek_token != end {
             self.next_token();
-            self.next_token();
+
+            // Parse the expression
             let argument = self.parse_expression(Precedence::Lowest)?;
             expressions.push(argument);
+
+            // Parse the comma
+            if self.peek_token != token!(,) && self.peek_token != end {
+                return Err(anyhow!(
+                    "Expected next token to be , or {} got {:?} instead",
+                    end,
+                    self.peek_token
+                ));
+            } else if self.peek_token == token!(,) {
+                self.next_token();
+            }
         }
 
         // Parse the end token

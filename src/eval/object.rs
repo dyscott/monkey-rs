@@ -1,9 +1,14 @@
-use std::{fmt::{self, Display, Formatter}, cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{self, Display, Formatter},
+    rc::Rc, hash::Hash,
+};
 
 use crate::parser::ast::Statement;
 
-use super::environment::Environment;
 use super::builtins::BuiltInFunction;
+use super::environment::Environment;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -11,6 +16,7 @@ pub enum Object {
     Boolean(bool),
     String(String),
     Array(Vec<Object>),
+    Hash(HashMap<HashKey, Object>),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Box<Statement>, Rc<RefCell<Environment>>),
     BuiltInFunction(BuiltInFunction),
@@ -38,6 +44,14 @@ impl Display for Object {
                     .join(", ");
                 write!(f, "[{}]", values)
             }
+            Object::Hash(values) => {
+                let values = values
+                    .iter()
+                    .map(|(key, value)| format!("{}: {}", key, value))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "{{{}}}", values)
+            }
             Object::ReturnValue(value) => {
                 write!(f, "{}", value)
             }
@@ -56,6 +70,7 @@ impl Display for Object {
 }
 
 impl Object {
+    // Check if an object is truthy
     pub fn is_truthy(&self) -> bool {
         match self {
             Object::Boolean(value) => *value,
@@ -63,17 +78,57 @@ impl Object {
             _ => true,
         }
     }
+    // Get the type name of an object for debugging
     pub fn type_name(&self) -> String {
         match self {
             Object::Integer(_) => "INTEGER",
             Object::Boolean(_) => "BOOLEAN",
             Object::String(_) => "STRING",
             Object::Array(_) => "ARRAY",
+            Object::Hash(_) => "HASH",
             Object::ReturnValue(_) => "RETURN_VALUE",
-            Object::Function(_, _, _) => "FUNCTION_OBJ",
+            Object::Function(_, _, _) => "FUNCTION",
             Object::BuiltInFunction(_) => "BUILTIN",
             Object::Null => "NULL",
         }
         .to_string()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum HashKey {
+    Integer(i64),
+    Boolean(bool),
+    String(String),
+}
+
+impl Into<Object> for HashKey {
+    // Convert hash keys into objects
+    fn into(self) -> Object {
+        match self {
+            HashKey::Integer(value) => Object::Integer(value),
+            HashKey::Boolean(value) => Object::Boolean(value),
+            HashKey::String(value) => Object::String(value),
+        }
+    }
+}
+
+impl From<Object> for Option<HashKey> {
+    // Convert objects into hash keys
+    fn from(value: Object) -> Self {
+        match value {
+            Object::Integer(value) => Some(HashKey::Integer(value)),
+            Object::Boolean(value) => Some(HashKey::Boolean(value)),
+            Object::String(value) => Some(HashKey::String(value)),
+            _ => None,
+        }
+    }
+}
+
+impl Display for HashKey {
+    // Pretty print hash keys
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let object: Object = self.clone().into();
+        write!(f, "{}", object)
     }
 }

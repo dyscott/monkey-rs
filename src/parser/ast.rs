@@ -48,6 +48,7 @@ pub enum Expression {
     Boolean(bool),
     String(String),
     Array(Vec<Expression>),
+    Hash(Vec<(Expression, Expression)>),
     Prefix(Token, Box<Expression>),
     Infix(Token, Box<Expression>, Box<Expression>),
     If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
@@ -80,6 +81,14 @@ impl Display for Expression {
                     .collect::<Vec<String>>()
                     .join(", ");
                 write!(f, "[{}]", values)
+            }
+            Expression::Hash(values) => {
+                let values = values
+                    .iter()
+                    .map(|(key, value)| format!("{}: {}", key, value))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "{}", values)
             }
             Expression::Prefix(op, right) => {
                 write!(f, "({}{})", op, right)

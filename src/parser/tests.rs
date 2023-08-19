@@ -450,3 +450,100 @@ fn test_array_slice_expression() {
         ));
     }
 }
+
+#[test]
+fn test_hash_literal_string_keys() {
+    let input = String::from(
+        "
+        {
+            \"one\": 1,
+            \"two\": 2,
+            \"three\": 3,
+        }
+        ",
+    );
+
+    let tests = vec![
+        ("one", Expression::Integer(1)),
+        ("two", Expression::Integer(2)),
+        ("three", Expression::Integer(3)),
+    ];
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Expression(
+            Expression::Hash(pairs)
+        ) if pairs.len() == 3 &&
+            pairs.iter().zip(tests.iter()).all(|((k, v), (key, value))| matches!(k,
+                Expression::String(s) if s == *key
+            ) && v == value)
+    ));
+}
+
+#[test]
+fn test_hash_empty_hash_literal() {
+    let input = String::from("{}");
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Expression(
+            Expression::Hash(pairs)
+        ) if pairs.is_empty()
+    ));
+}
+
+#[test]
+fn test_hash_literal_expressions() {
+    let input = String::from(
+        "
+        {
+            \"one\": 0 + 1,
+            \"two\": 10 - 8,
+            \"three\": 15 / 5,
+        }
+        ",
+    );
+    
+    let tests = vec![
+        (
+            "one",
+            Expression::Infix(
+                token!(+),
+                Box::new(Expression::Integer(0)),
+                Box::new(Expression::Integer(1)),
+            ),
+        ),
+        (
+            "two",
+            Expression::Infix(
+                token!(-),
+                Box::new(Expression::Integer(10)),
+                Box::new(Expression::Integer(8)),
+            ),
+        ),
+        (
+            "three",
+            Expression::Infix(
+                token!(/),
+                Box::new(Expression::Integer(15)),
+                Box::new(Expression::Integer(5)),
+            ),
+        ),
+    ];
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Expression(
+            Expression::Hash(pairs)
+        ) if pairs.len() == 3 &&
+            pairs.iter().zip(tests.iter()).all(|((k, v), (key, value))| matches!(k,
+                Expression::String(s) if s == *key
+            ) && v == value)
+    ));
+}

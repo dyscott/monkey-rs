@@ -2,7 +2,7 @@ mod environment;
 mod object;
 mod builtins;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, collections::HashMap};
 
 use crate::{
     parser::ast::{Expression, Node, Program, Statement},
@@ -12,6 +12,8 @@ use crate::token;
 use anyhow::{anyhow, Result};
 use environment::Environment;
 use object::Object;
+
+use self::object::HashKey;
 
 #[cfg(test)]
 mod tests;
@@ -107,6 +109,7 @@ impl Evaluator {
             Expression::Boolean(value) => Ok(Object::Boolean(value.clone())),
             Expression::String(value) => Ok(Object::String(value.clone())),
             Expression::Array(value) => self.eval_array_literal_expression(value),
+            Expression::Hash(value) => self.eval_hash_literal_expression(value),
             Expression::Prefix(op, right) => self.eval_prefix_expression(op, right),
             Expression::Infix(op, left, right) => self.eval_infix_expression(op, left, right),
             Expression::If(condition, consequence, alternative) => {
@@ -120,7 +123,7 @@ impl Evaluator {
             )),
             Expression::Call(function, args) => self.eval_function_call_expression(function, args),
             Expression::Index(left, index) => self.eval_index_expression(left, index),
-            Expression::SliceIndex(left, start, stop) => self.eval_slice_index_expression(left, start, stop)
+            Expression::SliceIndex(left, start, stop) => self.eval_slice_index_expression(left, start, stop),
         }
     }
 
@@ -131,6 +134,26 @@ impl Evaluator {
             .map(|e| self.eval_node(Node::Expression(e)))
             .collect::<Result<Vec<Object>>>()?;
         Ok(Object::Array(elements))
+    }
+
+    // Evaluate a hash literal expression
+    fn eval_hash_literal_expression(&mut self, elements: &Vec<(Expression, Expression)>) -> Result<Object> {
+        let mut pairs = HashMap::new();
+        
+        for (key, value) in elements {
+            let key = self.eval_node(Node::Expression(key))?;
+            let value = self.eval_node(Node::Expression(value))?;
+
+            let key_type = key.type_name();
+            let key: HashKey = match key.into() {
+                Some(key) => key,
+                None => return Err(anyhow!("unusable as hash key: {}", key_type)),
+            };
+
+            pairs.insert(key, value);
+        }
+
+        Ok(Object::Hash(pairs))
     }
 
     // Evaluate a prefix expression
@@ -311,6 +334,17 @@ impl Evaluator {
                 };
                 match string.chars().nth(index as usize) {
                     Some(char) => Ok(Object::String(char.to_string())),
+                    None => Ok(Object::Null),
+                }
+            }
+            (Object::Hash(values), _) => {
+                let index_type = index.type_name();
+                let key = match index.into() {
+                    Some(key) => key,
+                    None => return Err(anyhow!("unusable as hash key: {}", index_type)),
+                };
+                match values.get(&key) {
+                    Some(value) => Ok(value.clone()),
                     None => Ok(Object::Null),
                 }
             }

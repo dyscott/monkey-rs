@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::token::Token;
+use crate::lexer::token::Token;
 
 pub enum Node<'a> {
     Program(&'a Program),
@@ -46,6 +46,7 @@ pub enum Expression {
     Identifier(String),
     Integer(i64),
     Boolean(bool),
+    String(String),
     Prefix(Token, Box<Expression>),
     Infix(Token, Box<Expression>, Box<Expression>),
     If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
@@ -63,6 +64,9 @@ impl Display for Expression {
                 write!(f, "{}", value)
             }
             Expression::Boolean(value) => {
+                write!(f, "{}", value)
+            }
+            Expression::String(value) => {
                 write!(f, "{}", value)
             }
             Expression::Prefix(op, right) => {

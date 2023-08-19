@@ -158,6 +158,7 @@ fn test_error_handling() {
             "unknown operator: BOOLEAN + BOOLEAN",
         ),
         ("foobar", "identifier not found: foobar"),
+        ("\"Hello\" - \"World\"", "unknown operator: STRING - STRING")
     ];
 
     for (input, expected) in tests {
@@ -212,4 +213,35 @@ fn test_closures() {
 
     let evaluated = eval_test(input).unwrap();
     assert_eq!(evaluated, Object::Integer(4));
+}
+
+#[test]
+fn test_string_literal() {
+    let input = String::from("\"Hello World!\"");
+
+    let evaluated = eval_test(input).unwrap();
+    assert_eq!(evaluated, Object::String("Hello World!".to_string()));
+}
+
+#[test]
+fn test_string_concatenation() {
+    let input = String::from("\"Hello\" + \" \" + \"World!\"");
+
+    let evaluated = eval_test(input).unwrap();
+    assert_eq!(evaluated, Object::String("Hello World!".to_string()));
+}
+
+#[test]
+fn test_string_comparison() {
+    let tests = vec![
+        ("\"Hello\" == \"Hello\"", true),
+        ("\"Hello\" != \"Hello\"", false),
+        ("\"Hello\" == \"World\"", false),
+        ("\"Hello\" != \"World\"", true),
+    ];
+
+    for (input, expected) in tests {
+        let evaluated = eval_test(input.to_string()).unwrap();
+        assert_eq!(evaluated, Object::Boolean(expected));
+    }
 }

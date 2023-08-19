@@ -20,7 +20,7 @@ impl Environment {
     pub fn new(outer: Option<Rc<RefCell<Environment>>>) -> Self {
         Self {
             values: HashMap::new(),
-            outer: outer,
+            outer,
         }
     }
 

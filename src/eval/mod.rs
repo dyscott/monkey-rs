@@ -5,8 +5,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     parser::ast::{Expression, Node, Program, Statement},
-    token::Token,
+    lexer::token::Token,
 };
+use crate::token;
 use anyhow::{anyhow, Result};
 use environment::Environment;
 use object::Object;
@@ -32,11 +33,11 @@ impl Evaluator {
 
     // Entry-point to evaluate a program
     pub fn eval(&mut self, program: &Program) -> Result<Object> {
-        self.eval_node(&Node::Program(program))
+        self.eval_node(Node::Program(program))
     }
 
     // Evaluate a AST node
-    fn eval_node(&mut self, node: &Node) -> Result<Object> {
+    fn eval_node(&mut self, node: Node) -> Result<Object> {
         stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
             match node {
                 Node::Program(program) => self.eval_program(&program),
@@ -51,7 +52,7 @@ impl Evaluator {
         let mut result = Ok(Object::Null);
 
         for statement in &program.statements {
-            result = self.eval_node(&Node::Statement(&statement));
+            result = self.eval_node(Node::Statement(&statement));
 
             match result {
                 Ok(Object::ReturnValue(value)) => return Ok(*value),
@@ -68,7 +69,7 @@ impl Evaluator {
         let mut result = Ok(Object::Null);
 
         for statement in statements {
-            result = self.eval_node(&Node::Statement(&statement));
+            result = self.eval_node(Node::Statement(&statement));
 
             match result {
                 Ok(Object::ReturnValue(_)) | Err(_) => return result,
@@ -82,10 +83,10 @@ impl Evaluator {
     // Evaluate a statement node
     fn eval_statement(&mut self, statement: &Statement) -> Result<Object> {
         match statement {
-            Statement::Expression(expression) => self.eval_node(&Node::Expression(expression)),
+            Statement::Expression(expression) => self.eval_node(Node::Expression(expression)),
             Statement::Block(block) => self.eval_block_statement(&block),
             Statement::Return(expression) => Ok(Object::ReturnValue(Box::new(
-                self.eval_node(&Node::Expression(expression))?,
+                self.eval_node(Node::Expression(expression))?,
             ))),
             Statement::Let(name, expression) => self.eval_let_statement(name, expression),
         }
@@ -93,7 +94,7 @@ impl Evaluator {
 
     // Evaluate a let statement
     fn eval_let_statement(&mut self, name: &String, expression: &Expression) -> Result<Object> {
-        let value = self.eval_node(&Node::Expression(expression))?;
+        let value = self.eval_node(Node::Expression(expression))?;
         self.env.borrow_mut().set(name, value.clone());
         Ok(Object::Null)
     }
@@ -103,6 +104,7 @@ impl Evaluator {
         match expression {
             Expression::Integer(value) => Ok(Object::Integer(value.clone())),
             Expression::Boolean(value) => Ok(Object::Boolean(value.clone())),
+            Expression::String(value) => Ok(Object::String(value.clone())),
             Expression::Prefix(op, right) => self.eval_prefix_expression(op, right),
             Expression::Infix(op, left, right) => self.eval_infix_expression(op, left, right),
             Expression::If(condition, consequence, alternative) => {
@@ -120,7 +122,7 @@ impl Evaluator {
 
     // Evaluate a prefix expression
     fn eval_prefix_expression(&mut self, op: &Token, right: &Expression) -> Result<Object> {
-        let right = self.eval_node(&Node::Expression(right))?;
+        let right = self.eval_node(Node::Expression(right))?;
         match op {
             token!(!) => Ok(Object::Boolean(!right.is_truthy())),
             token!(-) => match right {
@@ -138,12 +140,15 @@ impl Evaluator {
         left: &Expression,
         right: &Expression,
     ) -> Result<Object> {
-        let left = self.eval_node(&Node::Expression(left))?;
-        let right = self.eval_node(&Node::Expression(right))?;
+        let left = self.eval_node(Node::Expression(left))?;
+        let right = self.eval_node(Node::Expression(right))?;
 
         match (op, &left, &right) {
             (op, Object::Integer(left), Object::Integer(right)) => {
                 self.eval_integer_infix_expression(op, *left, *right)
+            }
+            (op, Object::String(left), Object::String(right)) => {
+                self.eval_string_infix_expression(op, left, right)
             }
             (token!(==), Object::Boolean(left), Object::Boolean(right)) => {
                 Ok(Object::Boolean(left == right))
@@ -186,6 +191,21 @@ impl Evaluator {
         }
     }
 
+    // Evaluate a string infix expression
+    fn eval_string_infix_expression(
+        &mut self,
+        op: &Token,
+        left: &String,
+        right: &String,
+    ) -> Result<Object> {
+        match op {
+            token!(+) => Ok(Object::String(left.to_owned() + right)),
+            token!(==) => Ok(Object::Boolean(left == right)),
+            token!(!=) => Ok(Object::Boolean(left != right)),
+            _ => Err(anyhow!("unknown operator: STRING {} STRING", op)),
+        }
+    }
+
     // Evaluate an if expression
     fn eval_if_expression(
         &mut self,
@@ -193,13 +213,13 @@ impl Evaluator {
         consequence: &Statement,
         alternative: &Option<Box<Statement>>,
     ) -> Result<Object> {
-        let condition = self.eval_node(&Node::Expression(condition))?;
+        let condition = self.eval_node(Node::Expression(condition))?;
 
         if condition.is_truthy() {
-            self.eval_node(&Node::Statement(consequence))
+            self.eval_node(Node::Statement(consequence))
         } else {
             match alternative {
-                Some(alternative) => self.eval_node(&Node::Statement(alternative)),
+                Some(alternative) => self.eval_node(Node::Statement(alternative)),
                 None => Ok(Object::Null),
             }
         }
@@ -219,10 +239,10 @@ impl Evaluator {
         function: &Expression,
         args: &Vec<Expression>,
     ) -> Result<Object> {
-        let function = self.eval_node(&Node::Expression(function))?;
+        let function = self.eval_node(Node::Expression(function))?;
         let args = args
             .iter()
-            .map(|a| self.eval_node(&Node::Expression(a)))
+            .map(|a| self.eval_node(Node::Expression(a)))
             .collect::<Result<Vec<Object>>>()?;
 
         // Get the function's parameters, body, and environment
@@ -239,7 +259,7 @@ impl Evaluator {
 
         // Evaluate the function's body in the extended environment
         let mut evaluator = Evaluator::new(Rc::new(RefCell::new(env)));
-        let evaluated = evaluator.eval_node(&Node::Statement(&body));
+        let evaluated = evaluator.eval_node(Node::Statement(&body));
 
         // Unwrap the return value if it exists
         match evaluated {

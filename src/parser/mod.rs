@@ -4,7 +4,8 @@ pub mod ast;
 mod tests;
 
 use crate::lexer::Lexer;
-use crate::token::Token;
+use crate::lexer::token::Token;
+use crate::token;
 use anyhow::{anyhow, Result};
 use ast::*;
 
@@ -174,6 +175,7 @@ impl Parser {
         match self.cur_token {
             Token::Ident(ref value) => self.parse_identifier(value.clone()),
             Token::Int(ref value) => self.parse_integer(value.clone()),
+            Token::String(ref value) => self.parse_string(value.clone()),
             token!(TRUE) => self.parse_boolean(true),
             token!(FALSE) => self.parse_boolean(false),
             token!(!) | token!(-) => self.parse_prefix_expression(),
@@ -202,6 +204,11 @@ impl Parser {
     // Parse a boolean
     fn parse_boolean(&mut self, value: bool) -> Result<Expression> {
         Ok(Expression::Boolean(value))
+    }
+
+    // Parse a string
+    fn parse_string(&mut self, value: String) -> Result<Expression> {
+        Ok(Expression::String(value))
     }
 
     // Parse a prefix expression

@@ -194,3 +194,29 @@ fn test_next_token_equality() {
         assert_eq!(token.to_string(), expect.1.to_string());
     }
 }
+
+#[test]
+fn test_next_token_string() {
+    let input = String::from(
+        "
+        \"foobar\"
+        \"foo bar\"
+        \"\\\"foo\\\"bar\"
+    ",
+    );
+
+    let tests = vec![
+        (token!(STRING("foobar")), "foobar"),
+        (token!(STRING("foo bar")), "foo bar"),
+        (token!(STRING("\"foo\"bar")), "\"foo\"bar"),
+        (token!(EOF), "EOF"),
+    ];
+
+    let mut lexer = Lexer::new(input);
+
+    for expect in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expect.0);
+        assert_eq!(token.to_string(), expect.1.to_string());
+    }
+}

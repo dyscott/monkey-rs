@@ -1,4 +1,7 @@
-use crate::{token, token::Token};
+pub mod token;
+
+use crate::token;
+use token::Token;
 
 #[cfg(test)]
 mod tests;
@@ -79,6 +82,8 @@ impl Lexer {
             '{' => token!('{'),
             '}' => token!('}'),
             '\0' => token!(EOF),
+            // Read string
+            '"' => self.read_string(),
             // Read identifier
             c if is_letter(c) => return self.read_identifier(),
             // Read number
@@ -108,6 +113,29 @@ impl Lexer {
         }
         let literal = &self.input[position..self.position];
         return token!(INT(literal));
+    }
+
+    // Read and return a string
+    fn read_string(&mut self) -> Token {
+        let mut escaped = false;
+        let mut literal = String::new();
+        loop {
+            self.read_char();
+            // Check for unescaped end of string
+            if self.ch == '"' && !escaped {
+                break;
+            } else if self.ch == '\\' && !escaped {
+                escaped = true;
+            } else {
+                literal.push(self.ch);
+                escaped = false;
+            }
+            // Check for EOF
+            if self.ch == '\0' {
+                return token!(ILLEGAL);
+            }
+        }
+        return token!(STRING(literal));
     }
 
     // Advance the lexer past any whitespace

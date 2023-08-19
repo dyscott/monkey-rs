@@ -8,6 +8,7 @@ use super::environment::Environment;
 pub enum Object {
     Integer(i64),
     Boolean(bool),
+    String(String),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Box<Statement>, Rc<RefCell<Environment>>),
     Null,
@@ -21,6 +22,9 @@ impl Display for Object {
                 write!(f, "{}", value)
             }
             Object::Boolean(value) => {
+                write!(f, "{}", value)
+            }
+            Object::String(value) => {
                 write!(f, "{}", value)
             }
             Object::ReturnValue(value) => {
@@ -49,6 +53,7 @@ impl Object {
         match self {
             Object::Integer(_) => "INTEGER",
             Object::Boolean(_) => "BOOLEAN",
+            Object::String(_) => "STRING",
             Object::ReturnValue(_) => "RETURN_VALUE",
             Object::Null => "NULL",
             Object::Function(_, _, _) => "FUNCTION_OBJ",

@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::token;
+use super::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -10,6 +10,7 @@ pub enum Token {
     // Identifiers + literals
     Ident(String),
     Int(String),
+    String(String),
 
     // Operators
     Assign,
@@ -50,6 +51,7 @@ impl Display for Token {
             token!(EOF) => write!(f, "EOF"),
             Token::Ident(value) => write!(f, "{value}"),
             Token::Int(value) => write!(f, "{value}"),
+            Token::String(value) => write!(f, "{value}"),
             token!(=) => write!(f, "="),
             token!(+) => write!(f, "+"),
             token!(-) => write!(f, "-"),
@@ -105,6 +107,9 @@ macro_rules! token {
     };
     (INT($value:expr)) => {
         Token::Int($value.to_string())
+    };
+    (STRING($value:expr)) => {
+        Token::String($value.to_string())
     };
     (=) => {
         Token::Assign

@@ -366,3 +366,17 @@ fn test_call_expression_parameter_parsing() {
         ));
     }
 }
+
+#[test]
+fn test_string_literal_expression() {
+    let input = String::from("\"hello world\";");
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Expression(
+            Expression::String(value)
+        ) if value == "hello world"
+    ));
+}

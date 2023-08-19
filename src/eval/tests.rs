@@ -260,9 +260,22 @@ fn test_builtin_functions() {
             "len(\"one\", \"two\")",
             Err(anyhow!("wrong number of arguments. got=2, want=1")),
         ),
+        ("len([1, 2, 3])", Ok(Object::Integer(3))),
+        ("len([])", Ok(Object::Integer(0))),
+        ("first([1, 2, 3])", Ok(Object::Integer(1))),
+        ("first([])", Ok(Object::Null)),
+		("first(1)", Err(anyhow!("argument to `first` must be ARRAY, got INTEGER"))),
+		("last([1, 2, 3])", Ok(Object::Integer(3))),
+		("last([])", Ok(Object::Null)),
+		("last(1)", Err(anyhow!("argument to `last` must be ARRAY, got INTEGER"))),
+		("rest([1, 2, 3])", Ok(Object::Array(vec![Object::Integer(2), Object::Integer(3)]))),
+		("rest([])", Ok(Object::Null)),
+		("push([], 1)", Ok(Object::Array(vec![Object::Integer(1)]))),
+		("push(1, 1)", Err(anyhow!("argument to `push` must be ARRAY, got INTEGER"))),
     ];
 
     for (input, expected) in tests {
+        println!("{}", input);
         let evaluated = eval_test(input.to_string());
         match expected {
             Ok(expected) => assert_eq!(evaluated.unwrap(), expected),

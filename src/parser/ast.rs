@@ -47,12 +47,15 @@ pub enum Expression {
     Integer(i64),
     Boolean(bool),
     String(String),
+    Array(Vec<Expression>),
     Prefix(Token, Box<Expression>),
     Infix(Token, Box<Expression>, Box<Expression>),
     If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
     Function(Vec<String>, Box<Statement>),
     Call(Box<Expression>, Vec<Expression>),
+    Index(Box<Expression>, Box<Expression>)
 }
+
 impl Display for Expression {
     // Pretty print parsed expressions
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -68,6 +71,14 @@ impl Display for Expression {
             }
             Expression::String(value) => {
                 write!(f, "{}", value)
+            }
+            Expression::Array(values) => {
+                let values = values
+                    .iter()
+                    .map(|value| format!("{}", value))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "[{}]", values)
             }
             Expression::Prefix(op, right) => {
                 write!(f, "({}{})", op, right)
@@ -101,6 +112,9 @@ impl Display for Expression {
                     .join(", ");
                 write!(f, "{}({})", function, args)
             }
+            Expression::Index(left, index) => {
+                write!(f, "({}[{}])", left, index)
+            }
         }
     }
 }
@@ -113,12 +127,6 @@ pub struct Program {
 impl Display for Program {
     // Pretty print parsed programs
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let output = self
-            .statements
-            .iter()
-            .map(|s| format!("{}", s))
-            .collect::<Vec<String>>()
-            .join("");
-        write!(f, "{}", output)
+        write!(f, "{}", Statement::Block(self.statements.clone()))
     }
 }

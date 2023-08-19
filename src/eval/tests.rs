@@ -266,7 +266,49 @@ fn test_builtin_functions() {
         let evaluated = eval_test(input.to_string());
         match expected {
             Ok(expected) => assert_eq!(evaluated.unwrap(), expected),
-            Err(expected) => assert!(matches!(evaluated, Err(err) if err.to_string() == expected.to_string())),
+            Err(expected) => {
+                assert!(matches!(evaluated, Err(err) if err.to_string() == expected.to_string()))
+            }
         }
+    }
+}
+
+#[test]
+fn test_array_literals() {
+    let input = "[1, 2 * 2, 3 + 3]";
+
+    let evaluated = eval_test(input.to_string()).unwrap();
+
+    assert_eq!(
+        evaluated,
+        Object::Array(vec![
+            Object::Integer(1),
+            Object::Integer(4),
+            Object::Integer(6),
+        ])
+    );
+}
+
+#[test]
+fn test_array_indexing() {
+    let tests = vec![
+        ("[1, 2, 3][0]", Object::Integer(1)),
+        ("[1, 2, 3][1]", Object::Integer(2)),
+        ("[1, 2, 3][2]", Object::Integer(3)),
+        ("let i = 0; [1][i];", Object::Integer(1)),
+        ("[1, 2, 3][1 + 1];", Object::Integer(3)),
+        ("let myArray = [1, 2, 3]; myArray[2];", Object::Integer(3)),
+        (
+            "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+            Object::Integer(6),
+        ),
+        ("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", Object::Integer(2)),
+        ("[1, 2, 3][3]", Object::Null),
+        ("[1, 2, 3][-1]", Object::Null),
+    ];
+
+    for (input, expected) in tests {
+        let evaluated = eval_test(input.to_string()).unwrap();
+        assert_eq!(evaluated, expected);
     }
 }

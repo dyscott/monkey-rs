@@ -81,6 +81,8 @@ impl Lexer {
             ')' => token!(')'),
             '{' => token!('{'),
             '}' => token!('}'),
+            '[' => token!('['),
+            ']' => token!(']'),
             '\0' => token!(EOF),
             // Read string
             '"' => self.read_string(),

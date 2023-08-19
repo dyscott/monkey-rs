@@ -3,8 +3,8 @@ pub mod ast;
 #[cfg(test)]
 mod tests;
 
-use crate::lexer::Lexer;
 use crate::lexer::token::Token;
+use crate::lexer::Lexer;
 use crate::token;
 use anyhow::{anyhow, Result};
 use ast::*;
@@ -18,11 +18,13 @@ pub enum Precedence {
     Product,     // *
     Prefix,      // -X or !X
     Call,        // myFunction(X)
+    Index,       // array[index]
 }
 
 impl From<&Token> for Precedence {
     fn from(token: &Token) -> Self {
         match token {
+            token!('[') => Precedence::Index,
             token!(==) | token!(!=) => Precedence::Equals,
             token!(<) | token!(>) => Precedence::LessGreater,
             token!(+) | token!(-) => Precedence::Sum,
@@ -150,6 +152,24 @@ impl Parser {
         Ok(Statement::Expression(expression))
     }
 
+    // Parse a block statement
+    fn parse_block_statement(&mut self) -> Result<Statement> {
+        let mut statements = Vec::new();
+
+        self.next_token();
+
+        // Parse all statements until the closing brace
+        while self.cur_token != token!('}') {
+            match self.parse_statement() {
+                Ok(stmt) => statements.push(stmt),
+                Err(err) => self.errors.push(err.to_string()),
+            };
+            self.next_token();
+        }
+
+        Ok(Statement::Block(statements))
+    }
+
     // Parse an expression
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression> {
         // Parse the initial prefix
@@ -178,6 +198,7 @@ impl Parser {
             Token::String(ref value) => self.parse_string(value.clone()),
             token!(TRUE) => self.parse_boolean(true),
             token!(FALSE) => self.parse_boolean(false),
+            token!('[') => self.parse_array(),
             token!(!) | token!(-) => self.parse_prefix_expression(),
             token!('(') => self.parse_group(),
             token!(IF) => self.parse_if(),
@@ -201,14 +222,21 @@ impl Parser {
         Ok(Expression::Integer(int))
     }
 
+    // Parse a string
+    fn parse_string(&mut self, value: String) -> Result<Expression> {
+        Ok(Expression::String(value))
+    }
+
     // Parse a boolean
     fn parse_boolean(&mut self, value: bool) -> Result<Expression> {
         Ok(Expression::Boolean(value))
     }
 
-    // Parse a string
-    fn parse_string(&mut self, value: String) -> Result<Expression> {
-        Ok(Expression::String(value))
+    // Parse an array
+    fn parse_array(&mut self) -> Result<Expression> {
+        // Parse the array elements
+        let elements = self.parse_expressions(token!(']'))?;
+        Ok(Expression::Array(elements))
     }
 
     // Parse a prefix expression
@@ -265,7 +293,7 @@ impl Parser {
             ));
         }
         self.next_token();
-        let consequence = self.parse_block()?;
+        let consequence = self.parse_block_statement()?;
 
         // Parse the else body
         let alternative = if self.peek_token == token!(ELSE) {
@@ -277,7 +305,7 @@ impl Parser {
                 ));
             }
             self.next_token();
-            Some(Box::new(self.parse_block()?))
+            Some(Box::new(self.parse_block_statement()?))
         } else {
             None
         };
@@ -309,7 +337,7 @@ impl Parser {
             ));
         }
         self.next_token();
-        let body = self.parse_block()?;
+        let body = self.parse_block_statement()?;
 
         return Ok(Expression::Function(parameters, Box::new(body)));
     }
@@ -364,22 +392,67 @@ impl Parser {
         Ok(parameters)
     }
 
-    // Parse a block statement
-    fn parse_block(&mut self) -> Result<Statement> {
-        let mut statements = Vec::new();
+    // Parse a call expression
+    fn parse_call(&mut self, function: Expression) -> Result<Expression> {
+        // Parse the function arguments
+        self.next_token();
+        let arguments = self.parse_expressions(token!(')'))?;
 
+        Ok(Expression::Call(Box::new(function), arguments))
+    }
+
+    // Parse an index expression
+    fn parse_index(&mut self, left: Expression) -> Result<Expression> {
+        // Parse the index
+        self.next_token();
+        self.next_token();
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        // Parse the closing bracket
+        if self.peek_token != token!(']') {
+            return Err(anyhow!(
+                "Expected next token to be ], got {:?} instead",
+                self.peek_token
+            ));
+        }
         self.next_token();
 
-        // Parse all statements until the closing brace
-        while self.cur_token != token!('}') {
-            match self.parse_statement() {
-                Ok(stmt) => statements.push(stmt),
-                Err(err) => self.errors.push(err.to_string()),
-            };
+        Ok(Expression::Index(Box::new(left), Box::new(index)))
+    }
+
+    // Parse an expression list (used for arrays and function calls)
+    fn parse_expressions(&mut self, end: Token) -> Result<Vec<Expression>> {
+        let mut expressions = Vec::new();
+
+        // Zero expressions
+        if self.peek_token == end {
             self.next_token();
+            return Ok(expressions);
+        }
+        self.next_token();
+
+        // Parse the first expression
+        let argument = self.parse_expression(Precedence::Lowest)?;
+        expressions.push(argument);
+
+        // Parse the remaining expressions
+        while self.peek_token == token!(,) {
+            self.next_token();
+            self.next_token();
+            let argument = self.parse_expression(Precedence::Lowest)?;
+            expressions.push(argument);
         }
 
-        Ok(Statement::Block(statements))
+        // Parse the end token
+        if self.peek_token != end {
+            return Err(anyhow!(
+                "Expected next token to be ), got {:?} instead",
+                self.peek_token
+            ));
+        }
+        self.next_token();
+
+        Ok(expressions)
     }
 
     // Parse an infix
@@ -394,6 +467,7 @@ impl Parser {
             | token!(<)
             | token!(>) => self.parse_infix_expression(left.clone()),
             token!('(') => self.parse_call(left.clone()),
+            token!('[') => self.parse_index(left.clone()),
             _ => Err(anyhow!(
                 "No infix parse function for {} found",
                 self.peek_token
@@ -415,50 +489,5 @@ impl Parser {
             Box::new(left.clone()),
             Box::new(right),
         ))
-    }
-
-    // Parse a call expression
-    fn parse_call(&mut self, function: Expression) -> Result<Expression> {
-        // Parse the function arguments
-        self.next_token();
-        let arguments = self.parse_call_arguments()?;
-
-        Ok(Expression::Call(Box::new(function), arguments))
-    }
-
-    // Parse the arguments of a call expression
-    fn parse_call_arguments(&mut self) -> Result<Vec<Expression>> {
-        let mut arguments = Vec::new();
-
-        // Zero arguments
-        if self.peek_token == token!(')') {
-            self.next_token();
-            return Ok(arguments);
-        }
-
-        self.next_token();
-
-        // Parse the first argument
-        let argument = self.parse_expression(Precedence::Lowest)?;
-        arguments.push(argument);
-
-        // Parse the remaining arguments
-        while self.peek_token == token!(,) {
-            self.next_token();
-            self.next_token();
-            let argument = self.parse_expression(Precedence::Lowest)?;
-            arguments.push(argument);
-        }
-
-        // Parse the closing parenthesis
-        if self.peek_token != token!(')') {
-            return Err(anyhow!(
-                "Expected next token to be ), got {:?} instead",
-                self.peek_token
-            ));
-        }
-        self.next_token();
-
-        Ok(arguments)
     }
 }

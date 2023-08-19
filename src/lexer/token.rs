@@ -32,6 +32,8 @@ pub enum Token {
     RParen,
     LBrace,
     RBrace,
+    LBracket,
+    RBracket,
 
     // Keywords
     Function,
@@ -68,6 +70,8 @@ impl Display for Token {
             token!('}') => write!(f, "}}"),
             token!('(') => write!(f, "("),
             token!(')') => write!(f, ")"),
+            token!('[') => write!(f, "["),
+            token!(']') => write!(f, "]"),
             token!(FUNCTION) => write!(f, "fn"),
             token!(LET) => write!(f, "let"),
             token!(TRUE) => write!(f, "true"),
@@ -158,6 +162,12 @@ macro_rules! token {
     };
     (')') => {
         Token::RParen
+    };
+    ('[') => {
+        Token::LBracket
+    };
+    (']') => {
+        Token::RBracket
     };
     (FUNCTION) => {
         Token::Function

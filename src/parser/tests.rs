@@ -209,6 +209,14 @@ fn test_operator_precedence() {
             "add(a + b + c * d / f + g)",
             "add((((a + b) + ((c * d) / f)) + g))",
         ),
+        (
+            "a * [1, 2, 3, 4][b * c] * d",
+            "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+        ),
+        (
+            "add(a * b[2], b[1], 2 * [1, 2][1])",
+            "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -303,7 +311,7 @@ fn test_fn_parameter_parsing() {
     let tests = vec![
         ("fn() {};", vec![]),
         ("fn(x) {};", vec!["x"]),
-        ("fn(x, y, z) {};", vec!["x", "y", "z"])
+        ("fn(x, y, z) {};", vec!["x", "y", "z"]),
     ];
 
     for (input, args) in tests {
@@ -348,7 +356,7 @@ fn test_call_expression_parameter_parsing() {
     let tests = vec![
         ("add();", vec![]),
         ("add(1);", vec!["1"]),
-        ("add(1, 2 * 3, 4 + 5);", vec!["1", "(2 * 3)", "(4 + 5)"])
+        ("add(1, 2 * 3, 4 + 5);", vec!["1", "(2 * 3)", "(4 + 5)"]),
     ];
 
     for (input, args) in tests {
@@ -378,5 +386,40 @@ fn test_string_literal_expression() {
         Statement::Expression(
             Expression::String(value)
         ) if value == "hello world"
+    ));
+}
+
+#[test]
+fn test_array_literal_expression() {
+    let input = String::from("[1, 2 * 2, 3 + 3]");
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Expression(
+            Expression::Array(values)
+        ) if values.len() == 3 &&
+            values[0].to_string() == "1" &&
+            values[1].to_string() == "(2 * 2)" &&
+            values[2].to_string() == "(3 + 3)"
+    ));
+}
+
+#[test]
+fn test_array_index_expression() {
+    let input = String::from("myArray[1 + 1]");
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Expression(
+            Expression::Index(
+                array,
+                index
+            )
+        ) if array.to_string() == "myArray" &&
+            index.to_string() == "(1 + 1)"
     ));
 }

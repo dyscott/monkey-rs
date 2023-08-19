@@ -106,6 +106,7 @@ impl Evaluator {
             Expression::Integer(value) => Ok(Object::Integer(value.clone())),
             Expression::Boolean(value) => Ok(Object::Boolean(value.clone())),
             Expression::String(value) => Ok(Object::String(value.clone())),
+            Expression::Array(value) => self.eval_array_literal_expression(value),
             Expression::Prefix(op, right) => self.eval_prefix_expression(op, right),
             Expression::Infix(op, left, right) => self.eval_infix_expression(op, left, right),
             Expression::If(condition, consequence, alternative) => {
@@ -118,7 +119,17 @@ impl Evaluator {
                 self.env.clone(),
             )),
             Expression::Call(function, args) => self.eval_function_call_expression(function, args),
+            Expression::Index(left, index) => self.eval_index_expression(left, index),
         }
+    }
+
+    // Evaluate an array literal expression
+    fn eval_array_literal_expression(&mut self, elements: &Vec<Expression>) -> Result<Object> {
+        let elements = elements
+            .iter()
+            .map(|e| self.eval_node(Node::Expression(e)))
+            .collect::<Result<Vec<Object>>>()?;
+        Ok(Object::Array(elements))
     }
 
     // Evaluate a prefix expression
@@ -271,6 +282,32 @@ impl Evaluator {
         match evaluated {
             Ok(Object::ReturnValue(value)) => Ok(*value),
             _ => evaluated,
+        }
+    }
+
+    // Evaluate an index expression
+    fn eval_index_expression(&mut self, left: &Expression, index: &Expression) -> Result<Object> {
+        let left = self.eval_node(Node::Expression(left))?;
+        let index = self.eval_node(Node::Expression(index))?;
+
+        match (&left, &index) {
+            (Object::Array(elements), Object::Integer(index)) => {
+                if *index < 0 || *index >= elements.len() as i64 {
+                    return Ok(Object::Null);
+                }
+                Ok(elements[*index as usize].clone())
+            }
+            (Object::String(string), Object::Integer(index)) => {
+                match string.chars().nth(*index as usize) {
+                    Some(char) => Ok(Object::String(char.to_string())),
+                    None => Ok(Object::Null),
+                }
+            }
+            _ => Err(anyhow!(
+                "index operator not supported: {}[{}]",
+                left.type_name(),
+                index.type_name()
+            )),
         }
     }
 }

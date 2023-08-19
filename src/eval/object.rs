@@ -10,6 +10,7 @@ pub enum Object {
     Integer(i64),
     Boolean(bool),
     String(String),
+    Array(Vec<Object>),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Box<Statement>, Rc<RefCell<Environment>>),
     BuiltInFunction(BuiltInFunction),
@@ -28,6 +29,14 @@ impl Display for Object {
             }
             Object::String(value) => {
                 write!(f, "{}", value)
+            }
+            Object::Array(values) => {
+                let values = values
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "[{}]", values)
             }
             Object::ReturnValue(value) => {
                 write!(f, "{}", value)
@@ -59,6 +68,7 @@ impl Object {
             Object::Integer(_) => "INTEGER",
             Object::Boolean(_) => "BOOLEAN",
             Object::String(_) => "STRING",
+            Object::Array(_) => "ARRAY",
             Object::ReturnValue(_) => "RETURN_VALUE",
             Object::Function(_, _, _) => "FUNCTION_OBJ",
             Object::BuiltInFunction(_) => "BUILTIN",

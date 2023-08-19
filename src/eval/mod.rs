@@ -37,11 +37,13 @@ impl Evaluator {
 
     // Evaluate a AST node
     fn eval_node(&mut self, node: &Node) -> Result<Object> {
-        match node {
-            Node::Program(program) => self.eval_program(&program),
-            Node::Statement(statement) => self.eval_statement(statement),
-            Node::Expression(expression) => self.eval_expression(expression),
-        }
+        stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+            match node {
+                Node::Program(program) => self.eval_program(&program),
+                Node::Statement(statement) => self.eval_statement(statement),
+                Node::Expression(expression) => self.eval_expression(expression),
+            }
+        })
     }
 
     // Evaluate a program node

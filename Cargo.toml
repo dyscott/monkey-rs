@@ -7,4 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
+stacker = "0.1.15"
 whoami = "1.4.1"
+
+[profile.release]
+debug = true

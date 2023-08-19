@@ -247,3 +247,40 @@ fn test_next_token_array() {
         assert_eq!(token.to_string(), expect.1.to_string());
     }
 }
+
+#[test]
+fn test_next_token_slice() {
+    let input = String::from(
+        "
+        [1, 2, 3, 4, 5][1:3];"
+    );
+
+    let tests = vec![
+        (token!('['), "["),
+        (token!(INT(1)), "1"),
+        (token!(,), ","),
+        (token!(INT(2)), "2"),
+        (token!(,), ","),
+        (token!(INT(3)), "3"),
+        (token!(,), ","),
+        (token!(INT(4)), "4"),
+        (token!(,), ","),
+        (token!(INT(5)), "5"),
+        (token!(']'), "]"),
+        (token!('['), "["),
+        (token!(INT(1)), "1"),
+        (token!(:), ":"),
+        (token!(INT(3)), "3"),
+        (token!(']'), "]"),
+        (token!(;), ";"),
+        (token!(EOF), "EOF"),
+    ];
+
+    let mut lexer = Lexer::new(input);
+
+    for expect in tests {
+        let token = lexer.next_token();
+        assert_eq!(token, expect.0);
+        assert_eq!(token.to_string(), expect.1.to_string());
+    }
+}

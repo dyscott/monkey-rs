@@ -120,6 +120,7 @@ impl Evaluator {
             )),
             Expression::Call(function, args) => self.eval_function_call_expression(function, args),
             Expression::Index(left, index) => self.eval_index_expression(left, index),
+            Expression::SliceIndex(left, start, stop) => self.eval_slice_index_expression(left, start, stop)
         }
     }
 
@@ -292,13 +293,23 @@ impl Evaluator {
 
         match (&left, &index) {
             (Object::Array(elements), Object::Integer(index)) => {
-                if *index < 0 || *index >= elements.len() as i64 {
-                    return Ok(Object::Null);
+                let index = if *index < 0 {
+                    elements.len() as i64 + *index
+                } else {
+                    *index
+                };
+                match elements.get(index as usize) {
+                    Some(element) => Ok(element.clone()),
+                    None => Ok(Object::Null),
                 }
-                Ok(elements[*index as usize].clone())
             }
             (Object::String(string), Object::Integer(index)) => {
-                match string.chars().nth(*index as usize) {
+                let index = if *index < 0 {
+                    string.len() as i64 + *index
+                } else {
+                    *index
+                };
+                match string.chars().nth(index as usize) {
                     Some(char) => Ok(Object::String(char.to_string())),
                     None => Ok(Object::Null),
                 }
@@ -308,6 +319,68 @@ impl Evaluator {
                 left.type_name(),
                 index.type_name()
             )),
+        }
+    }
+
+    // Evaluate a slice index expression
+    fn eval_slice_index_expression(
+        &mut self,
+        left: &Expression,
+        start: &Option<Box<Expression>>,
+        stop: &Option<Box<Expression>>,
+    ) -> Result<Object> {
+        let left = self.eval_node(Node::Expression(left))?;
+        let start = match start {
+            Some(start) => Some(self.eval_node(Node::Expression(start))?),
+            None => None,
+        };
+        let stop = match stop {
+            Some(stop) => Some(self.eval_node(Node::Expression(stop))?),
+            None => None,
+        };
+
+        match left {
+            Object::Array(elements) => {
+                let start = match start {
+                    Some(Object::Integer(start)) if start < 0 => elements.len() as i64 + start,
+                    Some(Object::Integer(start)) if start > elements.len() as i64 => elements.len() as i64,
+                    Some(Object::Integer(start)) => start,
+                    Some(_) => return Err(anyhow!("slice start must be an integer")),
+                    None => 0,
+                };
+                let stop = match stop {
+                    Some(Object::Integer(stop)) if stop < 0 => elements.len() as i64 + stop,
+                    Some(Object::Integer(stop)) if stop > elements.len() as i64 => elements.len() as i64,
+                    Some(Object::Integer(stop)) => stop,
+                    Some(_) => return Err(anyhow!("slice stop must be an integer")),
+                    None => elements.len() as i64,
+                };
+                match elements.get(start as usize..stop as usize) {
+                    Some(elements) => Ok(Object::Array(elements.to_vec())),
+                    None => Ok(Object::Array(vec![])),
+                }
+            }
+            Object::String(string) => {
+                let start = match start {
+                    Some(Object::Integer(start)) if start < 0 => string.len() as i64 + start,
+                    Some(Object::Integer(start)) if start > string.len() as i64 => string.len() as i64,
+                    Some(Object::Integer(start)) => start,
+                    Some(_) => return Err(anyhow!("slice start must be an integer")),
+                    None => 0,
+                };
+                let stop = match stop {
+                    Some(Object::Integer(stop)) if stop < 0 => string.len() as i64 + stop,
+                    Some(Object::Integer(stop)) if stop > string.len() as i64 => string.len() as i64,
+                    Some(Object::Integer(stop)) => stop,
+                    Some(_) => return Err(anyhow!("slice stop must be an integer")),
+                    None => string.len() as i64,
+                };
+                match string.get(start as usize..stop as usize) {
+                    Some(string) => Ok(Object::String(string.to_string())),
+                    None => Ok(Object::String("".to_string())),
+                }
+            }
+            _ => Err(anyhow!("slice operator not supported: {}", left.type_name())),
         }
     }
 }

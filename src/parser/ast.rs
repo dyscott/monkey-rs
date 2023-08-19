@@ -53,7 +53,8 @@ pub enum Expression {
     If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
     Function(Vec<String>, Box<Statement>),
     Call(Box<Expression>, Vec<Expression>),
-    Index(Box<Expression>, Box<Expression>)
+    Index(Box<Expression>, Box<Expression>),
+    SliceIndex(Box<Expression>, Option<Box<Expression>>, Option<Box<Expression>>)
 }
 
 impl Display for Expression {
@@ -114,6 +115,22 @@ impl Display for Expression {
             }
             Expression::Index(left, index) => {
                 write!(f, "({}[{}])", left, index)
+            }
+            Expression::SliceIndex(left, start, stop) => {
+                match (start, stop) {
+                    (Some(start), Some(stop)) => {
+                        write!(f, "({}[{}:{}])", left, start, stop)
+                    }
+                    (Some(start), None) => {
+                        write!(f, "({}[{}:])", left, start)
+                    }
+                    (None, Some(stop)) => {
+                        write!(f, "({}[:{}])", left, stop)
+                    }
+                    (None, None) => {
+                        write!(f, "({}[:])", left)
+                    }
+                }
             }
         }
     }

@@ -71,6 +71,7 @@ impl Lexer {
             '+' => token!(+),
             ',' => token!(,),
             ';' => token!(;),
+            ':' => token!(:),
             '-' => token!(-),
             '!' => token!(!),
             '*' => token!(*),

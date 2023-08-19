@@ -12,6 +12,7 @@ use ast::*;
 #[derive(PartialOrd, PartialEq, Clone, Copy)]
 pub enum Precedence {
     Lowest,
+    Slice,
     Equals,      // ==
     LessGreater, // > or <
     Sum,         // +
@@ -25,6 +26,7 @@ impl From<&Token> for Precedence {
     fn from(token: &Token) -> Self {
         match token {
             token!('[') => Precedence::Index,
+            token!(:) => Precedence::Lowest,
             token!(==) | token!(!=) => Precedence::Equals,
             token!(<) | token!(>) => Precedence::LessGreater,
             token!(+) | token!(-) => Precedence::Sum,
@@ -392,34 +394,6 @@ impl Parser {
         Ok(parameters)
     }
 
-    // Parse a call expression
-    fn parse_call(&mut self, function: Expression) -> Result<Expression> {
-        // Parse the function arguments
-        self.next_token();
-        let arguments = self.parse_expressions(token!(')'))?;
-
-        Ok(Expression::Call(Box::new(function), arguments))
-    }
-
-    // Parse an index expression
-    fn parse_index(&mut self, left: Expression) -> Result<Expression> {
-        // Parse the index
-        self.next_token();
-        self.next_token();
-        let index = self.parse_expression(Precedence::Lowest)?;
-
-        // Parse the closing bracket
-        if self.peek_token != token!(']') {
-            return Err(anyhow!(
-                "Expected next token to be ], got {:?} instead",
-                self.peek_token
-            ));
-        }
-        self.next_token();
-
-        Ok(Expression::Index(Box::new(left), Box::new(index)))
-    }
-
     // Parse an expression list (used for arrays and function calls)
     fn parse_expressions(&mut self, end: Token) -> Result<Vec<Expression>> {
         let mut expressions = Vec::new();
@@ -488,6 +462,82 @@ impl Parser {
             op,
             Box::new(left.clone()),
             Box::new(right),
+        ))
+    }
+
+    // Parse a call expression
+    fn parse_call(&mut self, function: Expression) -> Result<Expression> {
+        // Parse the function arguments
+        self.next_token();
+        let arguments = self.parse_expressions(token!(')'))?;
+
+        Ok(Expression::Call(Box::new(function), arguments))
+    }
+
+    // Parse an index expression
+    fn parse_index(&mut self, left: Expression) -> Result<Expression> {
+        self.next_token();
+
+        // Check for slice [:end?]
+        if self.peek_token == token!(:) {
+            return self.parse_index_slice(left, None);
+        }
+
+        // Parse the index
+        self.next_token();
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        // Check for slice [start:end?]
+        if self.peek_token == token!(:) {
+            return self.parse_index_slice(left, Some(Box::new(index)));
+        }
+
+        // Parse the closing bracket
+        if self.peek_token != token!(']') {
+            return Err(anyhow!(
+                "Expected next token to be ], got {:?} instead",
+                self.peek_token
+            ));
+        }
+
+        self.next_token();
+        Ok(Expression::Index(Box::new(left), Box::new(index)))
+    }
+
+    fn parse_index_slice(
+        &mut self,
+        left: Expression,
+        start: Option<Box<Expression>>,
+    ) -> Result<Expression> {
+        self.next_token();
+
+        // Check for slice [start?:]
+        if self.peek_token == token!(']') {
+            self.next_token();
+            return Ok(Expression::SliceIndex(
+                Box::new(left),
+                start,
+                None,
+            ));
+        }
+
+        // Parse the end index
+        self.next_token();
+        let end = self.parse_expression(Precedence::Lowest)?;
+
+        // Parse the closing bracket
+        if self.peek_token != token!(']') {
+            return Err(anyhow!(
+                "Expected next token to be ], got {:?} instead",
+                self.peek_token
+            ));
+        }
+
+        self.next_token();
+        Ok(Expression::SliceIndex(
+            Box::new(left),
+            start,
+            Some(Box::new(end)),
         ))
     }
 }

@@ -302,9 +302,68 @@ fn test_array_indexing() {
             "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
             Object::Integer(6),
         ),
-        ("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", Object::Integer(2)),
+        (
+            "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+            Object::Integer(2),
+        ),
         ("[1, 2, 3][3]", Object::Null),
-        ("[1, 2, 3][-1]", Object::Null),
+        ("[1, 2, 3][-1]", Object::Integer(3)),
+        (
+            "[1, 2, 3][:]",
+            Object::Array(vec![
+                Object::Integer(1),
+                Object::Integer(2),
+                Object::Integer(3),
+            ]),
+        ),
+        (
+            "[1, 2, 3][1:]",
+            Object::Array(vec![Object::Integer(2), Object::Integer(3)]),
+        ),
+        ("[1, 2, 3][:1]", Object::Array(vec![Object::Integer(1)])),
+        ("[1, 2, 3][-1:]", Object::Array(vec![Object::Integer(3)])),
+        (
+            "[1, 2, 3][:-1]",
+            Object::Array(vec![Object::Integer(1), Object::Integer(2)]),
+        ),
+        ("[1, 2, 3][1:2]", Object::Array(vec![Object::Integer(2)])),
+        (
+            "[1, 2, 3][1:3]",
+            Object::Array(vec![Object::Integer(2), Object::Integer(3)]),
+        ),
+        (
+            "[1, 2, 3][1:4]",
+            Object::Array(vec![Object::Integer(2), Object::Integer(3)]),
+        ),
+        ("[1, 2, 3][4:5]", Object::Array(vec![])),
+    ];
+
+    for (input, expected) in tests {
+        let evaluated = eval_test(input.to_string()).unwrap();
+        assert_eq!(evaluated, expected);
+    }
+}
+
+#[test]
+fn test_string_indexing() {
+    let tests = vec![
+        ("\"Hello\"[0]", Object::String("H".to_string())),
+        ("\"Hello\"[1]", Object::String("e".to_string())),
+        ("\"Hello\"[2]", Object::String("l".to_string())),
+        ("\"Hello\"[3]", Object::String("l".to_string())),
+        ("\"Hello\"[4]", Object::String("o".to_string())),
+        ("\"Hello\"[5]", Object::Null),
+        ("\"Hello\"[-1]", Object::String("o".to_string())),
+        ("\"Hello\"[1:]", Object::String("ello".to_string())),
+        ("\"Hello\"[:1]", Object::String("H".to_string())),
+        ("\"Hello\"[-1:]", Object::String("o".to_string())),
+        ("\"Hello\"[:-1]", Object::String("Hell".to_string())),
+        ("\"Hello\"[:]", Object::String("Hello".to_string())),
+        ("\"Hello\"[1:2]", Object::String("e".to_string())),
+        ("\"Hello\"[1:3]", Object::String("el".to_string())),
+        ("\"Hello\"[1:4]", Object::String("ell".to_string())),
+        ("\"Hello\"[1:5]", Object::String("ello".to_string())),
+        ("\"Hello\"[1:6]", Object::String("ello".to_string())),
     ];
 
     for (input, expected) in tests {

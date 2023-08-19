@@ -27,6 +27,7 @@ pub enum Token {
     // Delimiters
     Comma,
     Semicolon,
+    Colon,
 
     LParen,
     RParen,
@@ -66,6 +67,7 @@ impl Display for Token {
             token!(>) => write!(f, ">"),
             token!(,) => write!(f, ","),
             token!(;) => write!(f, ";"),
+            token!(:) => write!(f, ":"),
             token!('{') => write!(f, "{{"),
             token!('}') => write!(f, "}}"),
             token!('(') => write!(f, "("),
@@ -150,6 +152,9 @@ macro_rules! token {
     };
     (;) => {
         Token::Semicolon
+    };
+    (:) => {
+        Token::Colon
     };
     ('{') => {
         Token::LBrace

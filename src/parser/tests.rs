@@ -423,3 +423,30 @@ fn test_array_index_expression() {
             index.to_string() == "(1 + 1)"
     ));
 }
+
+#[test]
+fn test_array_slice_expression() {
+    let tests = vec![
+        ("myArray[1:2]", Some("1"), Some("2")),
+        ("myArray[1:]", Some("1"), None),
+        ("myArray[:2]", None, Some("2")),
+        ("myArray[:]", None, None),
+    ];
+
+    for (input, start, stop) in tests {
+        let program = setup_test(String::from(input), Some(1));
+
+        let stmt = &program.statements[0];
+        assert!(matches!(stmt,
+            Statement::Expression(
+                Expression::SliceIndex(
+                    array,
+                    start_expr,
+                    stop_expr
+                )
+            ) if array.to_string() == "myArray" &&
+                start_expr.as_ref().map(|e| e.to_string()) == start.map(|s| s.to_string()) &&
+                stop_expr.as_ref().map(|e| e.to_string()) == stop.map(|s| s.to_string())
+        ));
+    }
+}

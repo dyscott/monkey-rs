@@ -6,7 +6,28 @@ Based on the books [Writing An Interpreter In Go](https://interpreterbook.com/) 
 
 Built as a learning exercise to better understand the Rust and Go programming languages and how interpreters and compilers work
 
+## Usage
+Requires [Rust](https://www.rust-lang.org/) to be installed
+
+### REPL
+```bash
+$ cargo run --release
+>> let add = fn(x, y) { x + y };
+>> add(1, 2);
+3
+```
+### File Loading
+```bash
+$ cargo run --release -- examples/fibonacci.monkey
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34 ...]
+```
+
 ## Features
+monkey-rs aims to be a fully featured interpreter and compiler for the Monkey Programming Language with additional features inspired by other languages such as Python.
+
+***Note:** monkey-rs is still a work in progress and is not yet fully functional*
+
+Features implemented so far and planned for the future include:
 - [x] Language features from [Monkey Programming Language](https://monkeylang.org/)
   - [x] C-like syntax
   - [x] Primitive Types (integers, booleans, strings, arrays, hash maps)
@@ -29,22 +50,3 @@ Built as a learning exercise to better understand the Rust and Go programming la
 - [ ] Compiler
   - [ ] Bytecode
   - [ ] Stack-based VM
-
-## Usage
-Requires [Rust](https://www.rust-lang.org/) to be installed
-
-### REPL
-```bash
-$ cargo run --release
->> let add = fn(x, y) { x + y };
-null
->> add(1, 2)
-3
-```
-### File Loading
-```bash
-$ cargo run --release -- examples/fibonacci.monkey
-[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]...
-```
-
-##

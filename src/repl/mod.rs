@@ -44,7 +44,7 @@ pub fn start(input: &mut Stdin) -> Result<()> {
         let evaluated = evaluator.eval(&program);
         match evaluated {
             Ok(evaluated) => {
-                println!("{}\n", evaluated);
+                println!("{}", evaluated);
             }
             Err(error) => {
                 println!("Error occurred during evaluation:");

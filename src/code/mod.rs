@@ -10,6 +10,7 @@ pub type InstructionsSlice<'a> = &'a[u8];
 #[repr(u8)]
 pub enum Opcode {
     OpConstant,
+    OpAdd,
 }
 
 pub struct Definition {
@@ -24,6 +25,10 @@ impl Opcode {
                 name: "OpConstant",
                 operand_widths: vec![2],
             },
+            Opcode::OpAdd => Definition {
+                name: "OpAdd",
+                operand_widths: vec![],
+            },
         }
     }
 }
@@ -32,9 +37,11 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Opcode::OpConstant),
-            _ => Err(anyhow!("Unknown opcode: {}", value)),
+        if value <= Opcode::OpAdd as u8 {
+            // Sadly, this is unsafe, but using a match would be ugly / slow
+            return Ok(unsafe { std::mem::transmute(value) });
+        } else {
+            return Err(anyhow!("Invalid opcode: {}", value));
         }
     }
 }
@@ -95,6 +102,9 @@ pub fn format_instruction(def: &Definition, operands: Vec<u64>) -> String {
     }
 
     match operand_count {
+        0 => {
+            return def.name.to_string();
+        }
         1 => {
             return format!(
                 "{} {}", def.name, operands[0]
@@ -133,5 +143,8 @@ pub fn read_u16(instructions: InstructionsSlice) -> u16 {
 macro_rules! make {
     ($opcode:ident, [$($x:expr),*]) => {
         make(Opcode::$opcode, vec![$($x),*])
+    };
+    ($opcode:ident) => {
+        make(Opcode::$opcode, vec![])
     };
 }

@@ -1,5 +1,9 @@
+use crate::{
+    code::{read_u16, Instructions, Opcode},
+    compiler::Bytecode,
+    object::Object,
+};
 use anyhow::Result;
-use crate::{code::{Instructions, Opcode, read_u16}, object::Object, compiler::Bytecode};
 
 #[cfg(test)]
 mod tests;
@@ -35,7 +39,6 @@ impl VM {
         let mut ip = 0;
         while ip < self.instructions.len() {
             let op = Opcode::try_from(self.instructions[ip])?;
-
             match op {
                 Opcode::OpConstant => {
                     let const_index = read_u16(&self.instructions[ip + 1..ip + 3]);
@@ -43,7 +46,19 @@ impl VM {
                     let constant = self.constants[const_index as usize].clone();
                     self.push(constant);
                 }
+                Opcode::OpAdd => {
+                    let right = self.pop();
+                    let left = self.pop();
+                    let result = match (left, right) {
+                        (Object::Integer(left), Object::Integer(right)) => {
+                            Object::Integer(left + right)
+                        }
+                        _ => panic!(),
+                    };
+                    self.push(result);
+                }
             }
+
             ip += 1;
         }
         Ok(())
@@ -55,5 +70,13 @@ impl VM {
         }
         self.stack[self.sp] = obj;
         self.sp += 1;
+    }
+
+    pub fn pop(&mut self) -> Object {
+        if self.sp == 0 {
+            panic!("stack underflow");
+        }
+        self.sp -= 1;
+        return self.stack[self.sp].clone();
     }
 }

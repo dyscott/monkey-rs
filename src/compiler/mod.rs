@@ -1,4 +1,6 @@
 use crate::code::{Instructions, Opcode, make};
+use crate::token;
+use crate::lexer::token::Token;
 use crate::object::Object;
 use crate::parser::ast::{Expression, Node, Program, Statement};
 use anyhow::Result;
@@ -59,9 +61,14 @@ impl Compiler {
     // Compile an expression AST node
     pub fn compile_expression(&mut self, expression: &Expression) -> Result<()> {
         match expression {
-            Expression::Infix(_, left, right) => {
+            Expression::Infix(op, left, right) => {
                 self.compile(&Node::Expression(left))?;
                 self.compile(&Node::Expression(right))?;
+                match op {
+                    token!(+) => self.emit(Opcode::OpAdd, vec![]),
+                    _ => unimplemented!(),
+                };
+
             }
             Expression::Integer(value) => {
                 let integer = Object::Integer(*value);

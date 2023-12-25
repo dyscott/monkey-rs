@@ -46,7 +46,7 @@ fn test_integer_object() {
         },
         VMTestCase {
             input: String::from("1 + 2"),
-            expected: Object::Integer(2), // TODO: fix this
+            expected: Object::Integer(3), // TODO: fix this
         },
     ];
 

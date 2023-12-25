@@ -12,7 +12,12 @@ fn test_make() {
         Test {
             op: Opcode::OpConstant,
             operands: vec![65534],
-            expected: vec![Opcode::OpConstant as u8, 255, 254].into(),
+            expected: vec![Opcode::OpConstant as u8, 255, 254],
+        },
+        Test {
+            op: Opcode::OpAdd,
+            operands: vec![],
+            expected: vec![Opcode::OpAdd as u8],
         },
     ];
 
@@ -25,15 +30,15 @@ fn test_make() {
 #[test]
 fn test_instructions_string() {
     let instructions = vec![
-        make!(OpConstant, [1]),
+        make!(OpAdd),
         make!(OpConstant, [2]),
         make!(OpConstant, [65535]),
     ];
 
     let expected = String::from(
-        "0000 OpConstant 1\n\
-         0003 OpConstant 2\n\
-         0006 OpConstant 65535\n",
+        "0000 OpAdd\n\
+         0001 OpConstant 2\n\
+         0004 OpConstant 65535\n",
     );
 
     let mut concatted = Instructions::new();

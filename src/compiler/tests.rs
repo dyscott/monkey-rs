@@ -22,6 +22,7 @@ fn test_integer_arithmetic() {
             expected_instructions: vec![
                 make!(OpConstant, [0]),
                 make!(OpConstant, [1]),
+                make!(OpAdd),
             ],
         }
     ];

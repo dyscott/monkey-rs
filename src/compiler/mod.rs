@@ -3,10 +3,20 @@ use crate::token;
 use crate::lexer::token::Token;
 use crate::object::Object;
 use crate::parser::ast::{Expression, Node, Program, Statement};
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 
 #[cfg(test)]
 mod tests;
+
+macro_rules! emit {
+    ($self:ident, $opcode:expr) => {
+        $self.emit($opcode, vec![])
+    };
+    ($self:ident, $opcode:expr, [$($operand:expr),*]) => {
+        $self.emit($opcode, vec![$($operand),*])
+    };
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Compiler {
@@ -56,6 +66,7 @@ impl Compiler {
         match statement {
             Statement::Expression(expression) => {
                 self.compile_node(&Node::Expression(expression))?;
+                emit!(self, Opcode::OpPop);
             }
             _ => unimplemented!(),
         }
@@ -65,20 +76,46 @@ impl Compiler {
     // Compile an expression AST node
     pub fn compile_expression(&mut self, expression: &Expression) -> Result<()> {
         match expression {
-            Expression::Infix(op, left, right) => {
-                self.compile_node(&Node::Expression(left))?;
-                self.compile_node(&Node::Expression(right))?;
-                match op {
-                    token!(+) => self.emit(Opcode::OpAdd, vec![]),
-                    _ => unimplemented!(),
-                };
-
-            }
             Expression::Integer(value) => {
                 let integer = Object::Integer(*value);
                 let constant = self.add_constant(integer);
-                self.emit(Opcode::OpConstant, vec![constant as u64]);
-            }
+                emit!(self, Opcode::OpConstant, [constant as u64]);
+            },
+            Expression::Boolean(value) => {
+                match value {
+                    true => emit!(self, Opcode::OpTrue),
+                    false => emit!(self, Opcode::OpFalse),
+                };
+            },
+            Expression::Infix(op, left, right) => {
+                if op == &token!(<) {
+                    // Reverse the order of the operands
+                    self.compile_node(&Node::Expression(right))?;
+                    self.compile_node(&Node::Expression(left))?;
+                    emit!(self, Opcode::OpGreaterThan);
+                    return Ok(())
+                }
+                self.compile_node(&Node::Expression(left))?;
+                self.compile_node(&Node::Expression(right))?;
+                match op {
+                    token!(+) => emit!(self, Opcode::OpAdd),
+                    token!(-) => emit!(self, Opcode::OpSub),
+                    token!(*) => emit!(self, Opcode::OpMul),
+                    token!(/) => emit!(self, Opcode::OpDiv),
+                    token!(==) => emit!(self, Opcode::OpEqual),
+                    token!(!=) => emit!(self, Opcode::OpNotEqual),
+                    token!(>) => emit!(self, Opcode::OpGreaterThan),
+                    _ => Err(anyhow!("unknown operator: {}", op))?,
+                };
+            },
+            Expression::Prefix(op, right) => {
+                self.compile_node(&Node::Expression(right))?;
+                match op {
+                    token!(-) => emit!(self, Opcode::OpMinus),
+                    token!(!) => emit!(self, Opcode::OpBang),
+                    _ => Err(anyhow!("unknown operator: {}", op))?,
+                };
+            },
             _ => unimplemented!(),
         }
         Ok(())

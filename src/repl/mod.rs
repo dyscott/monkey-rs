@@ -62,7 +62,7 @@ pub fn start(input: &mut Stdin, compiled: bool) -> Result<()> {
             }
 
             // Print the stack top
-            let stack_elem = vm.stack_top();
+            let stack_elem = vm.last_popped_stack_elem();
             println!("{}", stack_elem);
             continue;
         }

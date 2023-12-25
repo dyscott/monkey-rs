@@ -1,16 +1,29 @@
-use anyhow::{Error, anyhow};
+use std::fmt::{Display, Formatter};
+
+use anyhow::{anyhow, Error};
 
 #[cfg(test)]
 mod tests;
 
 pub type Instructions = Vec<u8>;
-pub type InstructionsSlice<'a> = &'a[u8];
+pub type InstructionsSlice<'a> = &'a [u8];
 
 #[derive(Debug, PartialEq, Clone)]
 #[repr(u8)]
 pub enum Opcode {
     OpConstant,
+    OpPop,
     OpAdd,
+    OpSub,
+    OpMul,
+    OpDiv,
+    OpTrue,
+    OpFalse,
+    OpEqual,
+    OpNotEqual,
+    OpGreaterThan,
+    OpMinus,
+    OpBang,
 }
 
 pub struct Definition {
@@ -25,11 +38,61 @@ impl Opcode {
                 name: "OpConstant",
                 operand_widths: vec![2],
             },
+            Opcode::OpPop => Definition {
+                name: "OpPop",
+                operand_widths: vec![],
+            },
             Opcode::OpAdd => Definition {
                 name: "OpAdd",
                 operand_widths: vec![],
             },
+            Opcode::OpSub => Definition {
+                name: "OpSub",
+                operand_widths: vec![],
+            },
+            Opcode::OpMul => Definition {
+                name: "OpMul",
+                operand_widths: vec![],
+            },
+            Opcode::OpDiv => Definition {
+                name: "OpDiv",
+                operand_widths: vec![],
+            },
+            Opcode::OpTrue => Definition {
+                name: "OpTrue",
+                operand_widths: vec![],
+            },
+            Opcode::OpFalse => Definition {
+                name: "OpFalse",
+                operand_widths: vec![],
+            },
+            Opcode::OpEqual => Definition {
+                name: "OpEqual",
+                operand_widths: vec![],
+            },
+            Opcode::OpNotEqual => Definition {
+                name: "OpNotEqual",
+                operand_widths: vec![],
+            },
+            Opcode::OpGreaterThan => Definition {
+                name: "OpGreaterThan",
+                operand_widths: vec![],
+            },
+            Opcode::OpMinus => Definition {
+                name: "OpMinus",
+                operand_widths: vec![],
+            },
+            Opcode::OpBang => Definition {
+                name: "OpBang",
+                operand_widths: vec![],
+            },
         }
+    }
+}
+
+impl Display for Opcode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.lookup().name)
     }
 }
 
@@ -37,8 +100,8 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value <= Opcode::OpAdd as u8 {
-            // Sadly, this is unsafe, but using a match would be ugly / slow
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpBang as u8 {
+            // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {
             return Err(anyhow!("Invalid opcode: {}", value));
@@ -83,8 +146,12 @@ pub fn instructions_string(instructions: &Instructions) -> String {
             }
         };
         let def = op.lookup();
-        let (operands, read) = read_operands(&def, &instructions[i+1..]);
-        out.push_str(&format!("{:04} {}\n", i, format_instruction(&def, operands)));
+        let (operands, read) = read_operands(&def, &instructions[i + 1..]);
+        out.push_str(&format!(
+            "{:04} {}\n",
+            i,
+            format_instruction(&def, operands)
+        ));
         i += 1 + read;
     }
 
@@ -106,9 +173,7 @@ pub fn format_instruction(def: &Definition, operands: Vec<u64>) -> String {
             return def.name.to_string();
         }
         1 => {
-            return format!(
-                "{} {}", def.name, operands[0]
-            );
+            return format!("{} {}", def.name, operands[0]);
         }
         _ => {
             return format!("ERROR: unhandled operand_count for {}\n", def.name);
@@ -135,7 +200,7 @@ pub fn read_operands(def: &Definition, instructions: InstructionsSlice) -> (Vec<
 }
 
 pub fn read_u16(instructions: InstructionsSlice) -> u16 {
-    u16::from(instructions[0])<<8 | u16::from(instructions[1])
+    u16::from(instructions[0]) << 8 | u16::from(instructions[1])
 }
 
 // Macro to easily make instructions

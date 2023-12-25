@@ -1,4 +1,4 @@
-use crate::code::{Opcode, instructions_string};
+use crate::code::{instructions_string, Opcode};
 use crate::make;
 
 use super::*;
@@ -6,6 +6,16 @@ use crate::code::make;
 use crate::compiler::Compiler;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+
+macro_rules! make_test {
+    ($input:expr; $($exp_constant:expr),*; $($exp_instruction:expr),*) => {
+        CompilerTestCase {
+            input: String::from($input),
+            expected_constants: vec![$($exp_constant),*],
+            expected_instructions: vec![$($exp_instruction),*],
+        }
+    };
+}
 
 struct CompilerTestCase {
     input: String,
@@ -16,15 +26,149 @@ struct CompilerTestCase {
 #[test]
 fn test_integer_arithmetic() {
     let tests = vec![
-        CompilerTestCase {
-            input: String::from("1 + 2"),
-            expected_constants: vec![Object::Integer(1), Object::Integer(2)],
-            expected_instructions: vec![
-                make!(OpConstant, [0]),
-                make!(OpConstant, [1]),
-                make!(OpAdd),
-            ],
-        }
+        make_test!(
+            "1";
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "2";
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 + 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpAdd),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1; 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpPop),
+            make!(OpConstant, [1]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 - 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpSub),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 * 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpMul),
+            make!(OpPop)
+        ),
+        make_test!(
+            "4 / 2";
+            Object::Integer(4),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpDiv),
+            make!(OpPop)
+        ),
+        make_test!(
+            "-1";
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpMinus),
+            make!(OpPop)
+        )
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_boolean_expressions() {
+    let tests = vec![
+        make_test!(
+            "true";
+            ;
+            make!(OpTrue),
+            make!(OpPop)
+        ),
+        make_test!(
+            "false";
+            ;
+            make!(OpFalse),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 > 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpGreaterThan),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 < 2";
+            Object::Integer(2),
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpGreaterThan),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 == 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpEqual),
+            make!(OpPop)
+        ),
+        make_test!(
+            "1 != 2";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpNotEqual),
+            make!(OpPop)
+        ),
+        make_test!(
+            "true == false";
+            ;
+            make!(OpTrue),
+            make!(OpFalse),
+            make!(OpEqual),
+            make!(OpPop)
+        ),
+        make_test!(
+            "true != false";
+            ;
+            make!(OpTrue),
+            make!(OpFalse),
+            make!(OpNotEqual),
+            make!(OpPop)
+        ),
+        make_test!(
+            "!true";
+            ;
+            make!(OpTrue),
+            make!(OpBang),
+            make!(OpPop)
+        ),
     ];
 
     run_compiler_tests(tests);
@@ -51,8 +195,13 @@ fn run_compiler_tests(tests: Vec<CompilerTestCase>) {
 fn test_instructions(expected: Vec<Instructions>, actual: Instructions) {
     let concatted = concat_instructions(expected);
 
-    assert_eq!(concatted, actual, "wrong instructions: expected={:?}, actual={:?}",
-               instructions_string(&concatted), instructions_string(&actual));
+    assert_eq!(
+        concatted,
+        actual,
+        "wrong instructions: expected={:?}, actual={:?}",
+        instructions_string(&concatted),
+        instructions_string(&actual)
+    );
 }
 
 fn concat_instructions(instructions: Vec<Instructions>) -> Instructions {
@@ -66,5 +215,3 @@ fn concat_instructions(instructions: Vec<Instructions>) -> Instructions {
 fn test_constants(expected: Vec<Object>, actual: Vec<Object>) {
     assert_eq!(expected, actual);
 }
-
-

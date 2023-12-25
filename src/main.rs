@@ -7,6 +7,7 @@ mod repl;
 mod parser;
 mod eval;
 mod run;
+mod code;
 
 use crate::repl::start;
 use std::env::args;

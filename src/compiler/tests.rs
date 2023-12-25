@@ -40,7 +40,7 @@ fn run_compiler_tests(tests: Vec<CompilerTestCase>) {
     for test in tests {
         let program = parse(test.input);
         let mut compiler = Compiler::new();
-        compiler.compile(&Node::Program(&program)).unwrap();
+        compiler.compile(&program).unwrap();
         let bytecode = compiler.bytecode();
 
         test_instructions(test.expected_instructions, bytecode.instructions);

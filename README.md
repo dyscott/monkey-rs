@@ -18,7 +18,7 @@ $ cargo run --release
 ```
 ### File Loading
 ```bash
-$ cargo run --release -- examples/fibonacci.monkey
+$ cargo run --release -- --file=examples/fibonacci.monkey
 [0, 1, 1, 2, 3, 5, 8, 13, 21, 34 ...]
 ```
 

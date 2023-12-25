@@ -29,8 +29,12 @@ impl Compiler {
         }
     }
 
+    // Compile a full program
+    pub fn compile(&mut self, program: &Program) -> Result<()> {
+        self.compile_node(&Node::Program(program))
+    }
     // Compile from an AST node
-    pub fn compile(&mut self, node: &Node) -> Result<()> {
+    pub fn compile_node(&mut self, node: &Node) -> Result<()> {
         match node {
             Node::Program(program) => self.compile_program(program)?,
             Node::Statement(statement) => self.compile_statement(statement)?,
@@ -42,7 +46,7 @@ impl Compiler {
     // Compile a program AST node
     pub fn compile_program(&mut self, program: &Program) -> Result<()> {
         for statement in &program.statements {
-            self.compile(&Node::Statement(&statement))?;
+            self.compile_node(&Node::Statement(&statement))?;
         }
         Ok(())
     }
@@ -51,7 +55,7 @@ impl Compiler {
     pub fn compile_statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
             Statement::Expression(expression) => {
-                self.compile(&Node::Expression(expression))?;
+                self.compile_node(&Node::Expression(expression))?;
             }
             _ => unimplemented!(),
         }
@@ -62,8 +66,8 @@ impl Compiler {
     pub fn compile_expression(&mut self, expression: &Expression) -> Result<()> {
         match expression {
             Expression::Infix(op, left, right) => {
-                self.compile(&Node::Expression(left))?;
-                self.compile(&Node::Expression(right))?;
+                self.compile_node(&Node::Expression(left))?;
+                self.compile_node(&Node::Expression(right))?;
                 match op {
                     token!(+) => self.emit(Opcode::OpAdd, vec![]),
                     _ => unimplemented!(),

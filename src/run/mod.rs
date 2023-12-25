@@ -1,13 +1,15 @@
+use crate::compiler::Compiler;
 use crate::eval::Evaluator;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::vm::VM;
 
 use anyhow::Result;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub fn run_file(path: String) -> Result<()> {
+pub fn run_file(path: String, compiled: bool) -> Result<()> {
     // Open the file
     let path = Path::new(&path);
     let mut file = File::open(path)?;
@@ -28,17 +30,34 @@ pub fn run_file(path: String) -> Result<()> {
         return Ok(());
     }
 
-    // Evaluate the file
+    if compiled {
+        // Compile the file
+        let mut compiler = Compiler::new();
+        let result = compiler.compile(&program);
+        if let Err(error) = result {
+            println!("Error occurred during compilation:");
+            println!("\tError: {}", error);
+            return Ok(());
+        }
+        let bytecode = compiler.bytecode();
+
+        // Run the file
+        let mut vm = VM::new(bytecode);
+        let result = vm.run();
+        if let Err(error) = result {
+            println!("Error occurred during execution:");
+            println!("\tError: {}", error);
+            return Ok(());
+        }
+        return Ok(());
+    }
+
+    // Fall back to interpreted mode
     let mut evaluator = Evaluator::default();
     let evaluated = evaluator.eval(&program);
-    match evaluated {
-        Ok(_) => {
-            // Ignore the result
-        }
-        Err(error) => {
-            println!("Error occurred during evaluation:");
-            println!("\tError: {}", error)
-        }
+    if let Err(error) = evaluated {
+        println!("Error occurred during evaluation:");
+        println!("\tError: {}", error)
     }
 
     Ok(())

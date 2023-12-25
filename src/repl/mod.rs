@@ -1,4 +1,5 @@
-use crate::lexer::Lexer;
+use crate::vm::VM;
+use crate::{lexer::Lexer, compiler::Compiler};
 use crate::parser::Parser;
 use crate::eval::Evaluator;
 
@@ -8,7 +9,7 @@ use whoami::username;
 
 const PROMPT: &str = ">> ";
 
-pub fn start(input: &mut Stdin) -> Result<()> {
+pub fn start(input: &mut Stdin, compiled: bool) -> Result<()> {
     let mut buffer = String::new();
 
     let user = username();
@@ -37,6 +38,32 @@ pub fn start(input: &mut Stdin) -> Result<()> {
             for error in parser.errors {
                 println!("\tError: {}", error);
             }
+            continue;
+        }
+
+        if compiled {
+            // Compile the input
+            let mut compiler = Compiler::new();
+            let result = compiler.compile(&program);
+            if let Err(error) = result {
+                println!("Error occurred during compilation:");
+                println!("\tError: {}", error);
+                continue;
+            }
+            let bytecode = compiler.bytecode();
+
+            // Run the input
+            let mut vm = VM::new(bytecode);
+            let result = vm.run();
+            if let Err(error) = result {
+                println!("Error occurred during execution:");
+                println!("\tError: {}", error);
+                continue;
+            }
+
+            // Print the stack top
+            let stack_elem = vm.stack_top();
+            println!("{}", stack_elem);
             continue;
         }
 

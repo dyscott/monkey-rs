@@ -21,7 +21,7 @@ fn run_vm_tests(tests: Vec<VMTestCase>) {
     for test in tests {
         let program = parse(test.input);
         let mut compiler = Compiler::new();
-        compiler.compile(&Node::Program(&program)).unwrap();
+        compiler.compile_node(&Node::Program(&program)).unwrap();
         let bytecode = compiler.bytecode();
 
         let mut vm = VM::new(bytecode);

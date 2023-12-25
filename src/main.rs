@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use clap::Parser;
+
 #[macro_use]
 mod lexer;
 mod repl;
@@ -12,15 +14,26 @@ mod compiler;
 mod vm;
 
 use crate::repl::start;
-use std::env::args;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// File to run
+    #[arg(short, long)]
+    file: Option<String>,
+
+    /// Whether to run in compiled mode
+    #[arg(short, long, default_value = "false")]
+    compiled: bool,
+}
 
 fn main() {
     // Check for file argument
-    let args: Vec<String> = args().collect();
-    if args.len() > 1 {
-        run::run_file(args[1].clone()).unwrap();
+    let args = Args::parse();
+    if let Some(file) = args.file {
+        run::run_file(file, args.compiled).unwrap();
         return;
     }
 
-    start(&mut std::io::stdin()).unwrap();
+    start(&mut std::io::stdin(), args.compiled).unwrap();
 }

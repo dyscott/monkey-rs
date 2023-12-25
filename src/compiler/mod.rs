@@ -141,11 +141,14 @@ impl Compiler {
                 if self.last_instruction_is_pop() {
                     self.remove_last_pop();
                 }
-                
-                if let Some(alternative) = alternative {
-                    // Emit an OpJump with a bogus value
-                    let jump_pos = emit!(self, Opcode::OpJump, [9999]);
 
+                // Emit an OpJump with a bogus value
+                let jump_pos = emit!(self, Opcode::OpJump, [9999]);
+
+                let after_consequence_pos = self.instructions.len();
+                self.change_operand(jump_not_truthy_pos, after_consequence_pos as u64);
+
+                if let Some(alternative) = alternative {
                     let after_consequence_pos = self.instructions.len();
                     self.change_operand(jump_not_truthy_pos, after_consequence_pos as u64);
 
@@ -154,13 +157,12 @@ impl Compiler {
                     if self.last_instruction_is_pop() {
                         self.remove_last_pop();
                     }
-
-                    let after_alternative_pos = self.instructions.len();
-                    self.change_operand(jump_pos, after_alternative_pos as u64);
                 } else {
-                    let after_consequence_pos = self.instructions.len();
-                    self.change_operand(jump_not_truthy_pos, after_consequence_pos as u64);
+                    emit!(self, Opcode::OpNull);
                 }
+                
+                let after_alternative_pos = self.instructions.len();
+                self.change_operand(jump_pos, after_alternative_pos as u64);
             }
             _ => unimplemented!(),
         }

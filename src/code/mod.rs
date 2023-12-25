@@ -26,6 +26,7 @@ pub enum Opcode {
     OpBang,
     OpJumpNotTruthy,
     OpJump,
+    OpNull,
 }
 
 pub struct Definition {
@@ -96,6 +97,10 @@ impl Opcode {
                 name: "OpJump",
                 operand_widths: vec![2],
             },
+            Opcode::OpNull => Definition {
+                name: "OpNull",
+                operand_widths: vec![],
+            }
         }
     }
 }
@@ -110,7 +115,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpJump as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpNull as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {

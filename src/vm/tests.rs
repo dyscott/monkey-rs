@@ -80,6 +80,7 @@ fn test_boolean_expressions() {
         make_test_bool!("!!true", true),
         make_test_bool!("!!false", false),
         make_test_bool!("!!5", true),
+        make_test_bool!("!(if (false) { 5; })", true),
     ];
 
     run_vm_tests(tests);
@@ -95,6 +96,15 @@ fn test_conditionals() {
         make_test_int!("if (1 < 2) { 10 }", 10),
         make_test_int!("if (1 < 2) { 10 } else { 20 }", 10),
         make_test_int!("if (1 > 2) { 10 } else { 20 }", 20),
+        VMTestCase {
+            input: String::from("if (false) { 10 }"),
+            expected: Object::Null,
+        },
+        VMTestCase {
+            input: String::from("if (false) { 10 }"),
+            expected: Object::Null,
+        },
+        make_test_int!("if ((if (false) { 10 })) { 10 } else { 20 }", 20),
     ];
 
     run_vm_tests(tests);

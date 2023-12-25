@@ -182,8 +182,10 @@ fn test_conditionals() {
             Object::Integer(10),
             Object::Integer(3333);
             make!(OpTrue),
-            make!(OpJumpNotTruthy, [7]),
+            make!(OpJumpNotTruthy, [10]),
             make!(OpConstant, [0]),
+            make!(OpJump, [11]),
+            make!(OpNull),
             make!(OpPop),
             make!(OpConstant, [1]),
             make!(OpPop)

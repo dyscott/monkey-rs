@@ -11,6 +11,7 @@ mod tests;
 const STACK_SIZE: usize = 2048;
 const TRUE: Object = Object::Boolean(true);
 const FALSE: Object = Object::Boolean(false);
+const NULL: Object = Object::Null;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VM {
@@ -80,6 +81,9 @@ impl VM {
                     if !condition.is_truthy() {
                         ip = pos - 1;
                     }
+                }
+                Opcode::OpNull => {
+                    self.push(NULL.clone())?;
                 }
                 _ => unimplemented!("opcode not implemented: {}", op)
             }
@@ -171,6 +175,7 @@ impl VM {
         let operand = self.pop()?;
         match operand {
             Object::Boolean(value) => self.push(Object::Boolean(!value)),
+            Object::Null => self.push(TRUE.clone()),
             _ => self.push(FALSE.clone()),
         }
     }

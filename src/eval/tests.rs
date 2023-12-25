@@ -1,5 +1,5 @@
-use crate::eval::object::HashKey;
 use crate::lexer::Lexer;
+use crate::object::HashKey;
 use crate::parser::Parser;
 use anyhow::Result;
 

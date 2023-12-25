@@ -3,11 +3,12 @@
 #[macro_use]
 mod lexer;
 mod repl;
-#[macro_use]
 mod parser;
+mod object;
 mod eval;
 mod run;
 mod code;
+mod compiler;
 
 use crate::repl::start;
 use std::env::args;

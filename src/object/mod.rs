@@ -1,14 +1,18 @@
+pub mod environment;
+
+use anyhow::Result;
 use std::{
     cell::RefCell,
     collections::HashMap,
     fmt::{self, Display, Formatter},
-    rc::Rc, hash::Hash,
+    hash::Hash,
+    rc::Rc,
 };
 
 use crate::parser::ast::Statement;
+use environment::Environment;
 
-use super::builtins::BuiltInFunction;
-use super::environment::Environment;
+pub type BuiltInFunction = fn(Vec<Object>) -> Result<Object>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {

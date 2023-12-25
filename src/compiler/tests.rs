@@ -174,6 +174,39 @@ fn test_boolean_expressions() {
     run_compiler_tests(tests);
 }
 
+#[test]
+fn test_conditionals() {
+    let tests = vec![
+        make_test!(
+            "if (true) { 10 }; 3333;";
+            Object::Integer(10),
+            Object::Integer(3333);
+            make!(OpTrue),
+            make!(OpJumpNotTruthy, [7]),
+            make!(OpConstant, [0]),
+            make!(OpPop),
+            make!(OpConstant, [1]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "if (true) { 10 } else { 20 }; 3333;";
+            Object::Integer(10),
+            Object::Integer(20),
+            Object::Integer(3333);
+            make!(OpTrue),
+            make!(OpJumpNotTruthy, [10]),
+            make!(OpConstant, [0]),
+            make!(OpJump, [13]),
+            make!(OpConstant, [1]),
+            make!(OpPop),
+            make!(OpConstant, [2]),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

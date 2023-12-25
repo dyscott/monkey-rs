@@ -85,6 +85,22 @@ fn test_boolean_expressions() {
     run_vm_tests(tests);
 }
 
+#[test]
+fn test_conditionals() {
+    let tests = vec![
+        make_test_int!("if (true) { 10 }", 10),
+        make_test_int!("if (true) { 10 } else { 20 }", 10),
+        make_test_int!("if (false) { 10 } else { 20 }", 20),
+        make_test_int!("if (1) { 10 }", 10),
+        make_test_int!("if (1 < 2) { 10 }", 10),
+        make_test_int!("if (1 < 2) { 10 } else { 20 }", 10),
+        make_test_int!("if (1 > 2) { 10 } else { 20 }", 20),
+    ];
+
+    run_vm_tests(tests);
+}
+
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

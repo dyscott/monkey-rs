@@ -8,7 +8,7 @@ mod tests;
 pub type Instructions = Vec<u8>;
 pub type InstructionsSlice<'a> = &'a [u8];
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub enum Opcode {
     OpConstant,
@@ -24,6 +24,8 @@ pub enum Opcode {
     OpGreaterThan,
     OpMinus,
     OpBang,
+    OpJumpNotTruthy,
+    OpJump,
 }
 
 pub struct Definition {
@@ -86,6 +88,14 @@ impl Opcode {
                 name: "OpBang",
                 operand_widths: vec![],
             },
+            Opcode::OpJumpNotTruthy => Definition {
+                name: "OpJumpNotTruthy",
+                operand_widths: vec![2],
+            },
+            Opcode::OpJump => Definition {
+                name: "OpJump",
+                operand_widths: vec![2],
+            },
         }
     }
 }
@@ -100,7 +110,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpBang as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpJump as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {

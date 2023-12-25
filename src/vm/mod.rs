@@ -69,6 +69,19 @@ impl VM {
                 Opcode::OpMinus => {
                     self.exec_minus_op()?;
                 }
+                Opcode::OpJump => {
+                    let pos = read_u16(&self.instructions[ip + 1..]) as usize;
+                    ip = pos - 1;
+                }
+                Opcode::OpJumpNotTruthy => {
+                    let pos = read_u16(&self.instructions[ip + 1..]) as usize;
+                    ip += 2;
+                    let condition = self.pop()?;
+                    if !condition.is_truthy() {
+                        ip = pos - 1;
+                    }
+                }
+                _ => unimplemented!("opcode not implemented: {}", op)
             }
             ip += 1;
         }

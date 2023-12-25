@@ -9,6 +9,7 @@ mod eval;
 mod run;
 mod code;
 mod compiler;
+mod vm;
 
 use crate::repl::start;
 use std::env::args;

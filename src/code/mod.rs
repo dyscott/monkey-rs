@@ -27,6 +27,8 @@ pub enum Opcode {
     OpJumpNotTruthy,
     OpJump,
     OpNull,
+    OpGetGlobal,
+    OpSetGlobal,
 }
 
 pub struct Definition {
@@ -100,7 +102,15 @@ impl Opcode {
             Opcode::OpNull => Definition {
                 name: "OpNull",
                 operand_widths: vec![],
-            }
+            },
+            Opcode::OpGetGlobal => Definition {
+                name: "OpGetGlobal",
+                operand_widths: vec![2],
+            },
+            Opcode::OpSetGlobal => Definition {
+                name: "OpSetGlobal",
+                operand_widths: vec![2],
+            },
         }
     }
 }
@@ -115,7 +125,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpNull as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpSetGlobal as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {

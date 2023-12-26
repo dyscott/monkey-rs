@@ -110,6 +110,17 @@ fn test_conditionals() {
     run_vm_tests(tests);
 }
 
+#[test]
+fn test_global_let_statements() {
+    let tests = vec![
+        make_test_int!("let one = 1; one", 1),
+        make_test_int!("let one = 1; let two = 2; one + two", 3),
+        make_test_int!("let one = 1; let two = one + one; one + two", 3),
+    ];
+
+    run_vm_tests(tests);
+}
+
 
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);

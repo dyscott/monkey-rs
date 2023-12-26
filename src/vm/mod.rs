@@ -9,6 +9,7 @@ use anyhow::{anyhow, Result};
 mod tests;
 
 const STACK_SIZE: usize = 2048;
+pub const GLOBALS_SIZE: usize = 65536;
 const TRUE: Object = Object::Boolean(true);
 const FALSE: Object = Object::Boolean(false);
 const NULL: Object = Object::Null;
@@ -17,20 +18,55 @@ const NULL: Object = Object::Null;
 pub struct VM {
     pub constants: Vec<Object>,
     pub instructions: Instructions,
-    pub stack: [Object; STACK_SIZE],
+    pub stack: Box<[Object; STACK_SIZE]>,
     pub sp: usize,
+    pub globals: Box<[Object; GLOBALS_SIZE]>,
+}
+
+impl Default for VM {
+    fn default() -> Self {
+        VM {
+            constants: vec![],
+            instructions: vec![],
+            stack: vec![Object::Null; STACK_SIZE].try_into().unwrap(),
+            sp: 0,
+            globals: vec![Object::Null; GLOBALS_SIZE].try_into().unwrap(),
+        }
+    }
 }
 
 impl VM {
+    // Create a new VM
     pub fn new(bytecode: Bytecode) -> Self {
         VM {
             constants: bytecode.constants,
             instructions: bytecode.instructions,
             stack: vec![Object::Null; STACK_SIZE].try_into().unwrap(),
             sp: 0,
+            globals: vec![Object::Null; GLOBALS_SIZE].try_into().unwrap(),
         }
     }
 
+    // Reset the VM for reuse (for REPL)
+    pub fn reset(&mut self, bytecode: Bytecode) {
+        self.constants = bytecode.constants;
+        self.instructions = bytecode.instructions;
+        self.stack = vec![Object::Null; STACK_SIZE].try_into().unwrap();
+        self.sp = 0;
+    }
+
+    // Create a new VM with a globals store
+    pub fn with_globals_store(bytecode: Bytecode, globals: Box<[Object; GLOBALS_SIZE]>) -> Self {
+        VM {
+            constants: bytecode.constants,
+            instructions: bytecode.instructions,
+            stack: vec![Object::Null; STACK_SIZE].try_into().unwrap(),
+            sp: 0,
+            globals,
+        }
+    }
+
+    // Get the top element of the stack
     pub fn stack_top(&self) -> Object {
         if self.sp == 0 {
             return Object::Null;
@@ -38,6 +74,7 @@ impl VM {
         self.stack[self.sp - 1].clone()
     }
 
+    // Run the VM
     pub fn run(&mut self) -> Result<()> {
         let mut ip = 0;
         while ip < self.instructions.len() {
@@ -71,11 +108,11 @@ impl VM {
                     self.exec_minus_op()?;
                 }
                 Opcode::OpJump => {
-                    let pos = read_u16(&self.instructions[ip + 1..]) as usize;
+                    let pos = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
                     ip = pos - 1;
                 }
                 Opcode::OpJumpNotTruthy => {
-                    let pos = read_u16(&self.instructions[ip + 1..]) as usize;
+                    let pos = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     let condition = self.pop()?;
                     if !condition.is_truthy() {
@@ -85,6 +122,16 @@ impl VM {
                 Opcode::OpNull => {
                     self.push(NULL.clone())?;
                 }
+                Opcode::OpSetGlobal => {
+                    let global_index = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    ip += 2;
+                    self.globals[global_index] = self.pop()?;
+                }
+                Opcode::OpGetGlobal => {
+                    let global_index = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    ip += 2;
+                    self.push(self.globals[global_index].clone())?;
+                }
                 _ => unimplemented!("opcode not implemented: {}", op)
             }
             ip += 1;
@@ -92,6 +139,7 @@ impl VM {
         Ok(())
     }
 
+    // Push an element onto the stack
     pub fn push(&mut self, obj: Object) -> Result<()> {
         if self.sp >= STACK_SIZE {
             return Err(anyhow!("stack overflow"));
@@ -101,6 +149,7 @@ impl VM {
         Ok(())
     }
 
+    // Pop an element from the stack
     pub fn pop(&mut self) -> Result<Object> {
         if self.sp == 0 {
             return Err(anyhow!("stack underflow"));
@@ -109,10 +158,12 @@ impl VM {
         Ok(self.stack[self.sp].clone())
     }
 
+    // Get the last element popped from the stack
     pub fn last_popped_stack_elem(&self) -> Object {
         return self.stack[self.sp].clone();
     }
 
+    // Execute a binary operator
     pub fn exec_binary_op(&mut self, op: Opcode) -> Result<()> {
         let right = self.pop()?;
         let left = self.pop()?;
@@ -128,6 +179,7 @@ impl VM {
         }
     }
 
+    // Execute a binary operator on two integers
     pub fn exec_binary_int_op(&mut self, op: Opcode, left: i64, right: i64) -> Result<()> {
         let result = match op {
             Opcode::OpAdd => left + right,
@@ -139,6 +191,7 @@ impl VM {
         return self.push(Object::Integer(result));
     }
 
+    // Execute a comparison operator
     pub fn exec_comparison(&mut self, op: Opcode) -> Result<()> {
         let right = self.pop()?;
         let left = self.pop()?;
@@ -161,6 +214,7 @@ impl VM {
         }
     }
 
+    // Execute a comparison operator on two integers
     pub fn exec_comparison_int_op(&mut self, op: Opcode, left: i64, right: i64) -> Result<()> {
         let result = match op {
             Opcode::OpEqual => left == right,
@@ -171,6 +225,7 @@ impl VM {
         return self.push(Object::Boolean(result));
     }
 
+    // Execute the prefix bang operator
     pub fn exec_bang_op(&mut self) -> Result<()> {
         let operand = self.pop()?;
         match operand {
@@ -180,6 +235,7 @@ impl VM {
         }
     }
 
+    // Execute the prefix minus operator
     pub fn exec_minus_op(&mut self) -> Result<()> {
         let operand = self.pop()?;
         match operand {

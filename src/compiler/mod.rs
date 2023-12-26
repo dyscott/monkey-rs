@@ -1,9 +1,12 @@
+pub mod symbol_table;
+
 use crate::code::{make, Instructions, Opcode};
 use crate::lexer::token::Token;
 use crate::object::Object;
 use crate::parser::ast::{Expression, Node, Program, Statement};
 use crate::token;
 use anyhow::{anyhow, Result};
+use symbol_table::SymbolTable;
 
 #[cfg(test)]
 mod tests;
@@ -23,6 +26,7 @@ pub struct Compiler {
     constants: Vec<Object>,
     last_instruction: Option<EmittedInstruction>,
     previous_instruction: Option<EmittedInstruction>,
+    symbol_table: SymbolTable,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -45,7 +49,15 @@ impl Compiler {
             constants: vec![],
             last_instruction: None,
             previous_instruction: None,
+            symbol_table: SymbolTable::new(),
         }
+    }
+
+    // Reset compiler for reuse (for REPL)
+    pub fn reset(&mut self) {
+        self.instructions = Instructions::new();
+        self.last_instruction = None;
+        self.previous_instruction = None;
     }
 
     // Compile a full program
@@ -81,6 +93,11 @@ impl Compiler {
                 for statement in statements {
                     self.compile_node(&Node::Statement(statement))?;
                 }
+            }
+            Statement::Let(name, expression) => {
+                self.compile_node(&Node::Expression(expression))?;
+                let symbol = self.symbol_table.define(name);
+                emit!(self, Opcode::OpSetGlobal, [symbol.index as u64]);
             }
             _ => unimplemented!(),
         }
@@ -160,9 +177,18 @@ impl Compiler {
                 } else {
                     emit!(self, Opcode::OpNull);
                 }
-                
+
                 let after_alternative_pos = self.instructions.len();
                 self.change_operand(jump_pos, after_alternative_pos as u64);
+            }
+            Expression::Identifier(name) => {
+                let symbol = self.symbol_table.resolve(name).ok_or_else(|| {
+                    anyhow!(
+                        "undefined variable: {}",
+                        name
+                    )
+                })?;
+                emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]);
             }
             _ => unimplemented!(),
         }
@@ -232,10 +258,10 @@ impl Compiler {
     }
 
     // Get the compiled bytecode
-    pub fn bytecode(self) -> Bytecode {
+    pub fn bytecode(&self) -> Bytecode {
         Bytecode {
-            instructions: self.instructions,
-            constants: self.constants,
+            instructions: self.instructions.clone(),
+            constants: self.constants.clone(),
         }
     }
 }

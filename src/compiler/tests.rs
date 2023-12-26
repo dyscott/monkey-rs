@@ -209,6 +209,41 @@ fn test_conditionals() {
     run_compiler_tests(tests);
 }
 
+#[test]
+fn test_global_let_statements() {
+    let tests = vec![
+        make_test!(
+            "let one = 1; let two = 2;";
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpSetGlobal, [0]),
+            make!(OpConstant, [1]),
+            make!(OpSetGlobal, [1])
+        ),
+        make_test!(
+            "let one = 1; one;";
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpSetGlobal, [0]),
+            make!(OpGetGlobal, [0]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "let one = 1; let two = one; two;";
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpSetGlobal, [0]),
+            make!(OpGetGlobal, [0]),
+            make!(OpSetGlobal, [1]),
+            make!(OpGetGlobal, [1]),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

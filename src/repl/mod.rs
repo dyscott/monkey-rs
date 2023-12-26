@@ -17,6 +17,9 @@ pub fn start(input: &mut Stdin, compiled: bool) -> Result<()> {
     println!("Feel free to type in commands or 'exit' to exit the REPL");
 
     let mut evaluator = Evaluator::default();
+    let mut compiler = Compiler::new();
+    let mut vm = VM::default();
+
     loop {
         // Prompt and read input
         buffer.clear();
@@ -43,17 +46,18 @@ pub fn start(input: &mut Stdin, compiled: bool) -> Result<()> {
 
         if compiled {
             // Compile the input
-            let mut compiler = Compiler::new();
             let result = compiler.compile(&program);
             if let Err(error) = result {
                 println!("Error occurred during compilation:");
                 println!("\tError: {}", error);
+                compiler.reset();
                 continue;
             }
-            let bytecode = compiler.bytecode();
+            let bytecode = compiler.bytecode().clone();
+            compiler.reset();
 
             // Run the input
-            let mut vm = VM::new(bytecode);
+            vm.reset(bytecode);
             let result = vm.run();
             if let Err(error) = result {
                 println!("Error occurred during execution:");
@@ -64,6 +68,7 @@ pub fn start(input: &mut Stdin, compiled: bool) -> Result<()> {
             // Print the stack top
             let stack_elem = vm.last_popped_stack_elem();
             println!("{}", stack_elem);
+
             continue;
         }
 

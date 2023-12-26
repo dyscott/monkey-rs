@@ -121,6 +121,13 @@ impl VM {
                     ip += 2;
                     self.push(self.globals[global_index].clone())?;
                 }
+                Opcode::OpArray => {
+                    let num_elements = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    ip += 2;
+                    let array = self.build_array(self.sp - num_elements, self.sp)?;
+                    self.sp -= num_elements;
+                    self.push(array)?;
+                }
                 _ => unimplemented!("opcode not implemented: {}", op)
             }
             ip += 1;
@@ -160,6 +167,9 @@ impl VM {
             (Object::Integer(left), Object::Integer(right)) => {
                 self.exec_binary_int_op(op, left, right)
             }
+            (Object::String(left), Object::String(right)) => {
+                self.exec_binary_string_op(op, left, right)
+            }
             (left, right) => Err(anyhow!(
                 "unsupported types for binary operation: {} {}",
                 left,
@@ -178,6 +188,15 @@ impl VM {
             _ => return Err(anyhow!("unknown integer operator: {}", op)),
         };
         return self.push(Object::Integer(result));
+    }
+
+    // Execute a binary operator on two strings
+    pub fn exec_binary_string_op(&mut self, op: Opcode, left: String, right: String) -> Result<()> {
+        let result = match op {
+            Opcode::OpAdd => left + &right,
+            _ => return Err(anyhow!("unknown string operator: {}", op)),
+        };
+        return self.push(Object::String(result));
     }
 
     // Execute a comparison operator
@@ -231,5 +250,14 @@ impl VM {
             Object::Integer(value) => self.push(Object::Integer(-value)),
             _ => Err(anyhow!("unsupported type for negation: {}", operand)),
         }
+    }
+
+    // Build an array from the stack
+    pub fn build_array(&mut self, start_index: usize, end_index: usize) -> Result<Object> {
+        let mut elements = vec![];
+        for i in start_index..end_index {
+            elements.push(self.stack[i].clone());
+        }
+        return Ok(Object::Array(elements));
     }
 }

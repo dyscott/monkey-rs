@@ -118,6 +118,17 @@ impl Compiler {
                     false => emit!(self, Opcode::OpFalse),
                 };
             }
+            Expression::String(value) => {
+                let string = Object::String(value.clone());
+                let constant = self.add_constant(string);
+                emit!(self, Opcode::OpConstant, [constant as u64]);
+            }
+            Expression::Array(elements) => {
+                for element in elements {
+                    self.compile_node(&Node::Expression(element))?;
+                }
+                emit!(self, Opcode::OpArray, [elements.len() as u64]);
+            }
             Expression::Infix(op, left, right) => {
                 if op == &token!(<) {
                     // Reverse the order of the operands
@@ -182,12 +193,10 @@ impl Compiler {
                 self.change_operand(jump_pos, after_alternative_pos as u64);
             }
             Expression::Identifier(name) => {
-                let symbol = self.symbol_table.resolve(name).ok_or_else(|| {
-                    anyhow!(
-                        "undefined variable: {}",
-                        name
-                    )
-                })?;
+                let symbol = self
+                    .symbol_table
+                    .resolve(name)
+                    .ok_or_else(|| anyhow!("undefined variable: {}", name))?;
                 emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]);
             }
             _ => unimplemented!(),

@@ -89,7 +89,7 @@ fn test_integer_arithmetic() {
             make!(OpConstant, [0]),
             make!(OpMinus),
             make!(OpPop)
-        )
+        ),
     ];
 
     run_compiler_tests(tests);
@@ -237,6 +237,74 @@ fn test_global_let_statements() {
             make!(OpGetGlobal, [0]),
             make!(OpSetGlobal, [1]),
             make!(OpGetGlobal, [1]),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_string_expressions() {
+    let tests = vec![
+        make_test!(
+            "\"monkey\"";
+            Object::String(String::from("monkey"));
+            make!(OpConstant, [0]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "\"mon\" + \"key\"";
+            Object::String(String::from("mon")),
+            Object::String(String::from("key"));
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpAdd),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_array_literals() {
+    let tests = vec![
+        make_test!(
+            "[]";
+            ;
+            make!(OpArray, [0]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "[1, 2, 3]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpArray, [3]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "[1 + 2, 3 - 4, 5 * 6]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3),
+            Object::Integer(4),
+            Object::Integer(5),
+            Object::Integer(6);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpAdd),
+            make!(OpConstant, [2]),
+            make!(OpConstant, [3]),
+            make!(OpSub),
+            make!(OpConstant, [4]),
+            make!(OpConstant, [5]),
+            make!(OpMul),
+            make!(OpArray, [3]),
             make!(OpPop)
         ),
     ];

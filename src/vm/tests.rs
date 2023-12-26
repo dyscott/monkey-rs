@@ -23,6 +23,33 @@ macro_rules! make_test_bool {
     };
 }
 
+macro_rules! make_test_null {
+    ($input:expr) => {
+        VMTestCase {
+            input: String::from($input),
+            expected: Object::Null,
+        }
+    };
+}
+
+macro_rules! make_test_string {
+    ($input:expr, $expected:expr) => {
+        VMTestCase {
+            input: String::from($input),
+            expected: Object::String(String::from($expected)),
+        }
+    };
+}
+
+macro_rules! make_test_array {
+    ($input:expr, [$($expected:expr),*]) => {
+        VMTestCase {
+            input: String::from($input),
+            expected: Object::Array(vec![$(Object::Integer($expected)),*]),
+        }
+    };
+}
+
 struct VMTestCase {
     input: String,
     expected: Object,
@@ -96,14 +123,8 @@ fn test_conditionals() {
         make_test_int!("if (1 < 2) { 10 }", 10),
         make_test_int!("if (1 < 2) { 10 } else { 20 }", 10),
         make_test_int!("if (1 > 2) { 10 } else { 20 }", 20),
-        VMTestCase {
-            input: String::from("if (false) { 10 }"),
-            expected: Object::Null,
-        },
-        VMTestCase {
-            input: String::from("if (false) { 10 }"),
-            expected: Object::Null,
-        },
+        make_test_null!("if (1 > 2) { 10 }"),
+        make_test_null!("if (false) { 10 }"),
         make_test_int!("if ((if (false) { 10 })) { 10 } else { 20 }", 20),
     ];
 
@@ -116,6 +137,28 @@ fn test_global_let_statements() {
         make_test_int!("let one = 1; one", 1),
         make_test_int!("let one = 1; let two = 2; one + two", 3),
         make_test_int!("let one = 1; let two = one + one; one + two", 3),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_string_expressions() {
+    let tests = vec![
+        make_test_string!(r#""monkey""#, "monkey"),
+        make_test_string!(r#""mon" + "key""#, "monkey"),
+        make_test_string!(r#""mon" + "key" + "banana""#, "monkeybanana"),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_array_literals() {
+    let tests = vec![
+        make_test_array!(r#"[]"#, []),
+        make_test_array!(r#"[1, 2, 3]"#, [1, 2, 3]),
+        make_test_array!(r#"[1 + 2, 3 * 4, 5 + 6]"#, [3, 12, 11]),
     ];
 
     run_vm_tests(tests);

@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 mod tests;
 
 const STACK_SIZE: usize = 2048;
-pub const GLOBALS_SIZE: usize = 65536;
+const GLOBALS_SIZE: usize = 65536;
 const TRUE: Object = Object::Boolean(true);
 const FALSE: Object = Object::Boolean(false);
 const NULL: Object = Object::Null;
@@ -18,9 +18,9 @@ const NULL: Object = Object::Null;
 pub struct VM {
     pub constants: Vec<Object>,
     pub instructions: Instructions,
-    pub stack: Box<[Object; STACK_SIZE]>,
+    pub stack: Vec<Object>,
     pub sp: usize,
-    pub globals: Box<[Object; GLOBALS_SIZE]>,
+    pub globals: Vec<Object>,
 }
 
 impl Default for VM {
@@ -28,9 +28,9 @@ impl Default for VM {
         VM {
             constants: vec![],
             instructions: vec![],
-            stack: vec![Object::Null; STACK_SIZE].try_into().unwrap(),
+            stack: vec![Object::Null; STACK_SIZE],
             sp: 0,
-            globals: vec![Object::Null; GLOBALS_SIZE].try_into().unwrap(),
+            globals: vec![Object::Null; GLOBALS_SIZE],
         }
     }
 }
@@ -41,9 +41,9 @@ impl VM {
         VM {
             constants: bytecode.constants,
             instructions: bytecode.instructions,
-            stack: vec![Object::Null; STACK_SIZE].try_into().unwrap(),
+            stack: vec![Object::Null; STACK_SIZE],
             sp: 0,
-            globals: vec![Object::Null; GLOBALS_SIZE].try_into().unwrap(),
+            globals: vec![Object::Null; GLOBALS_SIZE],
         }
     }
 
@@ -51,19 +51,8 @@ impl VM {
     pub fn reset(&mut self, bytecode: Bytecode) {
         self.constants = bytecode.constants;
         self.instructions = bytecode.instructions;
-        self.stack = vec![Object::Null; STACK_SIZE].try_into().unwrap();
+        self.stack = vec![Object::Null; STACK_SIZE];
         self.sp = 0;
-    }
-
-    // Create a new VM with a globals store
-    pub fn with_globals_store(bytecode: Bytecode, globals: Box<[Object; GLOBALS_SIZE]>) -> Self {
-        VM {
-            constants: bytecode.constants,
-            instructions: bytecode.instructions,
-            stack: vec![Object::Null; STACK_SIZE].try_into().unwrap(),
-            sp: 0,
-            globals,
-        }
     }
 
     // Get the top element of the stack

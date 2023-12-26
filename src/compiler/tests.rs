@@ -17,6 +17,14 @@ macro_rules! make_test {
     };
 }
 
+macro_rules! make_compiled_function {
+    ($instructions:expr) => {
+        Object::CompiledFunction(CompiledFunction {
+            instructions: concat_instructions($instructions),
+        })
+    };
+}
+
 struct CompilerTestCase {
     input: String,
     expected_constants: Vec<Object>,
@@ -478,6 +486,145 @@ fn test_index_expressions() {
             make!(OpConstant, [1]),
             make!(OpConstant, [2]),
             make!(OpSliceIndex),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_functions() {
+    let tests = vec![
+        make_test!(
+            "fn() { return 5 + 10 }";
+            Object::Integer(5),
+            Object::Integer(10),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpConstant, [1]),
+                make!(OpAdd),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [2]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "fn() { 5 + 10 }";
+            Object::Integer(5),
+            Object::Integer(10),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpConstant, [1]),
+                make!(OpAdd),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [2]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "fn() { 1; 2 }";
+            Object::Integer(1),
+            Object::Integer(2),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpPop),
+                make!(OpConstant, [1]),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [2]),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_compiler_scopes() {
+    let mut compiler = Compiler::new();
+
+    assert_eq!(compiler.scope_index, 0);
+
+    compiler.emit(Opcode::OpMul, vec![]);
+
+    compiler.enter_scope();
+    assert_eq!(compiler.scope_index, 1);
+
+    compiler.emit(Opcode::OpSub, vec![]);
+    assert_eq!(compiler.scopes[compiler.scope_index].instructions.len(), 1);
+    assert_eq!(
+        compiler.scopes[compiler.scope_index]
+            .last_instruction
+            .clone()
+            .unwrap()
+            .opcode,
+        Opcode::OpSub
+    );
+
+    compiler.leave_scope();
+    assert_eq!(compiler.scope_index, 0);
+
+    compiler.emit(Opcode::OpAdd, vec![]);
+
+    assert_eq!(compiler.scopes[compiler.scope_index].instructions.len(), 2);
+    assert_eq!(
+        compiler.scopes[compiler.scope_index]
+            .last_instruction
+            .clone()
+            .unwrap()
+            .opcode,
+        Opcode::OpAdd
+    );
+    assert_eq!(
+        compiler.scopes[compiler.scope_index]
+            .previous_instruction
+            .clone()
+            .unwrap()
+            .opcode,
+        Opcode::OpMul
+    );
+}
+
+#[test]
+fn test_functions_without_return_value() {
+    let tests = vec![make_test!(
+        "fn() { }";
+        make_compiled_function!(vec![
+            make!(OpReturn),
+        ]);
+        make!(OpConstant, [0]),
+        make!(OpPop)
+    )];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_function_calls() {
+    let tests = vec![
+        make_test!(
+            "fn() { 24 }()";
+            Object::Integer(24),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [1]),
+            make!(OpCall),
+            make!(OpPop)
+        ),
+        make_test!(
+            "let noArg = fn() { 24 }; noArg();";
+            Object::Integer(24),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [1]),
+            make!(OpSetGlobal, [0]),
+            make!(OpGetGlobal, [0]),
+            make!(OpCall),
             make!(OpPop)
         ),
     ];

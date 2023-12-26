@@ -252,6 +252,56 @@ fn test_index_expressions() {
     run_vm_tests(tests);
 }
 
+#[test]
+fn test_calling_functions_without_arguments() {
+    let tests = vec![
+        make_test_int!("let fivePlusTen = fn() { 5 + 10; }; fivePlusTen();", 15),
+        make_test_int!(
+            "let one = fn() { 1; }; let two = fn() { 2; }; one() + two()",
+            3
+        ),
+        make_test_int!(
+            "let a = fn() { 1 }; let b = fn() { a() + 1 }; let c = fn() { b() + 1 }; c();",
+            3
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_functions_with_return_statement() {
+    let tests = vec![
+        make_test_int!("let earlyExit = fn() { return 99; 100; }; earlyExit();", 99),
+        make_test_int!(
+            "let earlyExit = fn() { return 99; return 100; }; earlyExit();",
+            99
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_functions_without_return_value() {
+    let tests = vec![
+        make_test!("let noReturn = fn() { }; noReturn();", Object::Null),
+        make_test!("let noReturn = fn() { }; let noReturnTwo = fn() { noReturn(); }; noReturn(); noReturnTwo();", Object::Null),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_first_class_functions() {
+    let tests = vec![
+        make_test_int!("let returnsOne = fn() { 1; }; let returnsOneReturner = fn() { returnsOne; }; returnsOneReturner()();", 1),
+        make_test_int!("let returnsOneReturner = fn() { let returnsOne = fn() { 1; }; returnsOne; }; returnsOneReturner()();", 1),
+    ];
+
+    run_vm_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
@@ -265,11 +315,14 @@ fn run_vm_tests(tests: Vec<VMTestCase>) {
         compiler.compile_node(&Node::Program(&program)).unwrap();
         let bytecode = compiler.bytecode();
 
+        // Print disassembled bytecode
+        // println!("{}", instructions_string(&bytecode.instructions));
+
         let mut vm = VM::new(bytecode);
         vm.run().unwrap();
 
         let stack_elem = vm.last_popped_stack_elem();
 
-        assert_eq!(stack_elem, test.expected);
+        assert_eq!(test.expected, stack_elem);
     }
 }

@@ -1,17 +1,21 @@
+mod frame;
+
 use std::collections::HashMap;
 
 use crate::{
-    code::{read_u16, Instructions, Opcode},
+    code::{read_u16, Opcode},
     compiler::Bytecode,
-    object::{HashKey, Object},
+    object::{HashKey, Object, CompiledFunction},
 };
 use anyhow::{anyhow, Result};
+use frame::Frame;
 
 #[cfg(test)]
 mod tests;
 
 const STACK_SIZE: usize = 2048;
 const GLOBALS_SIZE: usize = 65536;
+const MAX_FRAMES: usize = 1024;
 const TRUE: Object = Object::Boolean(true);
 const FALSE: Object = Object::Boolean(false);
 const NULL: Object = Object::Null;
@@ -19,20 +23,24 @@ const NULL: Object = Object::Null;
 #[derive(Debug, PartialEq, Clone)]
 pub struct VM {
     pub constants: Vec<Object>,
-    pub instructions: Instructions,
     pub stack: Vec<Object>,
     pub sp: usize,
     pub globals: Vec<Object>,
+
+    frames: Vec<Frame>,
+    frames_index: usize,
 }
 
 impl Default for VM {
     fn default() -> Self {
         VM {
             constants: vec![],
-            instructions: vec![],
             stack: vec![Object::Null; STACK_SIZE],
             sp: 0,
             globals: vec![Object::Null; GLOBALS_SIZE],
+
+            frames: vec![],
+            frames_index: 1,
         }
     }
 }
@@ -40,19 +48,34 @@ impl Default for VM {
 impl VM {
     // Create a new VM
     pub fn new(bytecode: Bytecode) -> Self {
+        let main_fn = CompiledFunction {
+            instructions: bytecode.instructions,
+        };
+        let main_frame = Frame::new(main_fn);
+        let mut frames = Vec::with_capacity(MAX_FRAMES);
+        frames.push(main_frame);
+
         VM {
             constants: bytecode.constants,
-            instructions: bytecode.instructions,
             stack: vec![Object::Null; STACK_SIZE],
             sp: 0,
             globals: vec![Object::Null; GLOBALS_SIZE],
+
+            frames: frames,
+            frames_index: 1,
         }
     }
 
     // Reset the VM for reuse (for REPL)
     pub fn reset(&mut self, bytecode: Bytecode) {
+        let main_fn = CompiledFunction {
+            instructions: bytecode.instructions,
+        };
+        let main_frame = Frame::new(main_fn);
+
+        self.frames = vec![main_frame];
+        self.frames_index = 1;
         self.constants = bytecode.constants;
-        self.instructions = bytecode.instructions;
         self.stack = vec![Object::Null; STACK_SIZE];
         self.sp = 0;
     }
@@ -65,14 +88,37 @@ impl VM {
         self.stack[self.sp - 1].clone()
     }
 
+    // Get the current frame
+    pub fn current_frame(&mut self) -> &mut Frame {
+        &mut self.frames[self.frames_index - 1]
+    }
+
+    // Push a frame onto the stack
+    pub fn push_frame(&mut self, frame: Frame) -> Result<()> {
+        if self.frames_index >= MAX_FRAMES {
+            return Err(anyhow!("frame overflow"));
+        }
+        self.frames.push(frame);
+        self.frames_index += 1;
+        Ok(())
+    }
+
+    // Pop a frame from the stack
+    pub fn pop_frame(&mut self) -> Result<Frame> {
+        self.frames_index -= 1;
+        self.frames.pop().ok_or(anyhow!("frame underflow"))
+    }
+
     // Run the VM
     pub fn run(&mut self) -> Result<()> {
-        let mut ip = 0;
-        while ip < self.instructions.len() {
-            let op = Opcode::try_from(self.instructions[ip])?;
+        while self.current_frame().ip < self.current_frame().instructions().len() {
+            let mut ip = self.current_frame().ip;
+            let ins = self.current_frame().instructions();
+
+            let op = Opcode::try_from(ins[ip])?;
             match op {
                 Opcode::OpConstant => {
-                    let const_index = read_u16(&self.instructions[ip + 1..ip + 3]);
+                    let const_index = read_u16(&ins[ip + 1..ip + 3]);
                     ip += 2;
                     let constant = self.constants[const_index as usize].clone();
                     self.push(constant)?;
@@ -99,11 +145,11 @@ impl VM {
                     self.exec_minus_op()?;
                 }
                 Opcode::OpJump => {
-                    let pos = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    let pos = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip = pos - 1;
                 }
                 Opcode::OpJumpNotTruthy => {
-                    let pos = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    let pos = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     let condition = self.pop()?;
                     if !condition.is_truthy() {
@@ -114,24 +160,24 @@ impl VM {
                     self.push(NULL.clone())?;
                 }
                 Opcode::OpSetGlobal => {
-                    let global_index = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    let global_index = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     self.globals[global_index] = self.pop()?;
                 }
                 Opcode::OpGetGlobal => {
-                    let global_index = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    let global_index = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     self.push(self.globals[global_index].clone())?;
                 }
                 Opcode::OpArray => {
-                    let num_elements = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    let num_elements = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     let array = self.build_array(self.sp - num_elements, self.sp)?;
                     self.sp -= num_elements;
                     self.push(array)?;
                 }
                 Opcode::OpHash => {
-                    let num_elements = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    let num_elements = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     let hash = self.build_hash(self.sp - num_elements, self.sp)?;
                     self.sp -= num_elements;
@@ -148,9 +194,35 @@ impl VM {
                     let left = self.pop()?;
                     self.exec_slice_index_op(left, start, stop)?;
                 }
+                Opcode::OpCall => {
+                    if let Object::CompiledFunction(compiled_fn) = self.stack[self.sp - 1].clone() {
+                        let frame = Frame::new(compiled_fn);
+                        self.push_frame(frame)?;
+
+                        continue;
+                    } else {
+                        return Err(anyhow!("calling non-function"));
+                    }
+                }
+                Opcode::OpReturnValue => {
+                    let return_value = self.pop()?;
+
+                    self.pop_frame()?;
+                    ip = self.current_frame().ip;
+                    self.pop()?;
+                    
+                    self.push(return_value)?;
+                }
+                Opcode::OpReturn => {
+                    self.pop_frame()?;
+                    ip = self.current_frame().ip;
+                    self.pop()?;
+
+                    self.push(NULL.clone())?;
+                }
                 _ => unimplemented!("opcode not implemented: {}", op),
             }
-            ip += 1;
+            self.current_frame().ip = ip + 1;
         }
         Ok(())
     }

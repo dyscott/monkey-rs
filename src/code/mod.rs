@@ -33,6 +33,9 @@ pub enum Opcode {
     OpHash,
     OpIndex,
     OpSliceIndex,
+    OpCall,
+    OpReturnValue,
+    OpReturn,
 }
 
 pub struct Definition {
@@ -130,6 +133,18 @@ impl Opcode {
             Opcode::OpSliceIndex => Definition {
                 name: "OpSliceIndex",
                 operand_widths: vec![]
+            },
+            Opcode::OpCall => Definition {
+                name: "OpCall",
+                operand_widths: vec![]
+            },
+            Opcode::OpReturnValue => Definition {
+                name: "OpReturnValue",
+                operand_widths: vec![]
+            },
+            Opcode::OpReturn => Definition {
+                name: "OpReturn",
+                operand_widths: vec![]
             }
         }
     }
@@ -145,7 +160,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpSliceIndex as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpReturn as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {
@@ -236,7 +251,7 @@ pub fn read_operands(def: &Definition, instructions: InstructionsSlice) -> (Vec<
                 let operand = u64::from(read_u16(&instructions[offset..]));
                 operands.push(operand);
             }
-            _ => unimplemented!(),
+            _ => panic!("Unhandled operand width: {}", width)
         }
         offset += width;
     }

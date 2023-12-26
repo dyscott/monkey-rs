@@ -9,10 +9,15 @@ use std::{
     rc::Rc,
 };
 
-use crate::parser::ast::Statement;
+use crate::{parser::ast::Statement, code::Instructions};
 use environment::Environment;
 
 pub type BuiltInFunction = fn(Vec<Object>) -> Result<Object>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompiledFunction {
+    pub instructions: Instructions,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -24,6 +29,7 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Function(Vec<String>, Box<Statement>, Rc<RefCell<Environment>>),
     BuiltInFunction(BuiltInFunction),
+    CompiledFunction(CompiledFunction),
     Null,
 }
 
@@ -66,6 +72,9 @@ impl Display for Object {
             Object::BuiltInFunction(_) => {
                 write!(f, "builtin function")
             }
+            Object::CompiledFunction(_) => {
+                write!(f, "compiled function")
+            }
             Object::Null => {
                 write!(f, "null")
             }
@@ -93,6 +102,7 @@ impl Object {
             Object::ReturnValue(_) => "RETURN_VALUE",
             Object::Function(_, _, _) => "FUNCTION",
             Object::BuiltInFunction(_) => "BUILTIN",
+            Object::CompiledFunction(_) => "COMPILED_FUNCTION",
             Object::Null => "NULL",
         }
         .to_string()

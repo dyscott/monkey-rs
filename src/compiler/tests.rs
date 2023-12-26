@@ -362,6 +362,129 @@ fn test_hash_literals() {
     run_compiler_tests(tests);
 }
 
+#[test]
+fn test_index_expressions() {
+    let tests = vec![
+        make_test!(
+            "[1, 2, 3][1 + 1]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3),
+            Object::Integer(1),
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpArray, [3]),
+            make!(OpConstant, [3]),
+            make!(OpConstant, [4]),
+            make!(OpAdd),
+            make!(OpIndex),
+            make!(OpPop)
+        ),
+        make_test!(
+            "{1: 2}[2 - 1]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(2),
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpHash, [2]),
+            make!(OpConstant, [2]),
+            make!(OpConstant, [3]),
+            make!(OpSub),
+            make!(OpIndex),
+            make!(OpPop)
+        ),
+        // String indexing, not supported in the book
+        make_test!(
+            "\"monkey\"[1]";
+            Object::String(String::from("monkey")),
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpIndex),
+            make!(OpPop)
+        ),
+        // Slice indexing, not supported in the book
+        make_test!(
+            "[1, 2, 3][1:2]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3),
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpArray, [3]),
+            make!(OpConstant, [3]),
+            make!(OpConstant, [4]),
+            make!(OpSliceIndex),
+            make!(OpPop)
+        ),
+        make_test!(
+            "[1, 2, 3][1:]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3),
+            Object::Integer(1);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpArray, [3]),
+            make!(OpConstant, [3]),
+            make!(OpNull),
+            make!(OpSliceIndex),
+            make!(OpPop)
+        ),
+        make_test!(
+            "[1, 2, 3][:2]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpArray, [3]),
+            make!(OpNull),
+            make!(OpConstant, [3]),
+            make!(OpSliceIndex),
+            make!(OpPop)
+        ),
+        make_test!(
+            "[1, 2, 3][:]";
+            Object::Integer(1),
+            Object::Integer(2),
+            Object::Integer(3);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpArray, [3]),
+            make!(OpNull),
+            make!(OpNull),
+            make!(OpSliceIndex),
+            make!(OpPop)
+        ),
+        // String slicing, not supported in the book
+        make_test!(
+            "\"monkey\"[1:2]";
+            Object::String(String::from("monkey")),
+            Object::Integer(1),
+            Object::Integer(2);
+            make!(OpConstant, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpSliceIndex),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

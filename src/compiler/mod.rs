@@ -206,6 +206,23 @@ impl Compiler {
                     .ok_or_else(|| anyhow!("undefined variable: {}", name))?;
                 emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]);
             }
+            Expression::Index(left, index) => {
+                self.compile_node(&Node::Expression(left))?;
+                self.compile_node(&Node::Expression(index))?;
+                emit!(self, Opcode::OpIndex);
+            }
+            Expression::SliceIndex(left, start, end) => {
+                self.compile_node(&Node::Expression(left))?;
+                match start {
+                    Some(start) => self.compile_node(&Node::Expression(start))?,
+                    None => { emit!(self, Opcode::OpNull); },
+                };
+                match end {
+                    Some(end) => self.compile_node(&Node::Expression(end))?,
+                    None => { emit!(self, Opcode::OpNull); },
+                };
+                emit!(self, Opcode::OpSliceIndex);
+            }
             _ => unimplemented!(),
         }
         Ok(())

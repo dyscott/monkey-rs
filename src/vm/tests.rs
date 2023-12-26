@@ -179,13 +179,74 @@ fn test_hash_literals() {
         ),
         make_test!(
             "{1 + 1: 2 * 2, 3 + 3: 4 * 4}",
-            Object::Hash(
-                HashMap::from([
-                    (HashKey::Integer(2), Object::Integer(4)),
-                    (HashKey::Integer(6), Object::Integer(16)),
-                ])
-            )
+            Object::Hash(HashMap::from([
+                (HashKey::Integer(2), Object::Integer(4)),
+                (HashKey::Integer(6), Object::Integer(16)),
+            ]))
         ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_index_expressions() {
+    let tests = vec![
+        make_test_int!("[1, 2, 3][1]", 2),
+        make_test_int!("[1, 2, 3][0 + 2]", 3),
+        make_test_int!("[[1, 1, 1]][0][0]", 1),
+        make_test!("[][0]", Object::Null),
+        make_test!("[1, 2, 3][99]", Object::Null),
+        make_test_int!("[1][-1]", 1),
+        make_test_int!("{1: 1, 2: 2}[1]", 1),
+        make_test_int!("{1: 1, 2: 2}[2]", 2),
+        make_test!("{1: 1}[0]", Object::Null),
+        make_test!("{}[0]", Object::Null),
+        make_test!(
+            "[1, 2, 3][:]",
+            Object::Array(vec![
+                Object::Integer(1),
+                Object::Integer(2),
+                Object::Integer(3),
+            ])
+        ),
+        make_test!(
+            "[1, 2, 3][1:]",
+            Object::Array(vec![Object::Integer(2), Object::Integer(3)])
+        ),
+        make_test!("[1, 2, 3][:1]", Object::Array(vec![Object::Integer(1)])),
+        make_test!("[1, 2, 3][-1:]", Object::Array(vec![Object::Integer(3)])),
+        make_test!(
+            "[1, 2, 3][:-1]",
+            Object::Array(vec![Object::Integer(1), Object::Integer(2)])
+        ),
+        make_test!("[1, 2, 3][1:2]", Object::Array(vec![Object::Integer(2)])),
+        make_test!(
+            "[1, 2, 3][1:3]",
+            Object::Array(vec![Object::Integer(2), Object::Integer(3)])
+        ),
+        make_test!(
+            "[1, 2, 3][1:4]",
+            Object::Array(vec![Object::Integer(2), Object::Integer(3)])
+        ),
+        make_test!("[1, 2, 3][4:5]", Object::Array(vec![])),
+        make_test!("\"Hello\"[1]", Object::String("e".to_string())),
+        make_test!("\"Hello\"[2]", Object::String("l".to_string())),
+        make_test!("\"Hello\"[0]", Object::String("H".to_string())),
+        make_test!("\"Hello\"[3]", Object::String("l".to_string())),
+        make_test!("\"Hello\"[4]", Object::String("o".to_string())),
+        make_test!("\"Hello\"[5]", Object::Null),
+        make_test!("\"Hello\"[-1]", Object::String("o".to_string())),
+        make_test!("\"Hello\"[1:]", Object::String("ello".to_string())),
+        make_test!("\"Hello\"[:1]", Object::String("H".to_string())),
+        make_test!("\"Hello\"[-1:]", Object::String("o".to_string())),
+        make_test!("\"Hello\"[:-1]", Object::String("Hell".to_string())),
+        make_test!("\"Hello\"[:]", Object::String("Hello".to_string())),
+        make_test!("\"Hello\"[1:2]", Object::String("e".to_string())),
+        make_test!("\"Hello\"[1:3]", Object::String("el".to_string())),
+        make_test!("\"Hello\"[1:4]", Object::String("ell".to_string())),
+        make_test!("\"Hello\"[1:5]", Object::String("ello".to_string())),
+        make_test!("\"Hello\"[1:6]", Object::String("ello".to_string())),
     ];
 
     run_vm_tests(tests);

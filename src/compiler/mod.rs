@@ -123,6 +123,13 @@ impl Compiler {
                 let constant = self.add_constant(string);
                 emit!(self, Opcode::OpConstant, [constant as u64]);
             }
+            Expression::Hash(pairs) => {
+                for (key, value) in pairs {
+                    self.compile_node(&Node::Expression(key))?;
+                    self.compile_node(&Node::Expression(value))?;
+                }
+                emit!(self, Opcode::OpHash, [pairs.len() as u64 * 2]);
+            }
             Expression::Array(elements) => {
                 for element in elements {
                     self.compile_node(&Node::Expression(element))?;

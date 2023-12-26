@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
     code::{read_u16, Instructions, Opcode},
     compiler::Bytecode,
-    object::Object,
+    object::{Object, HashKey},
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Error};
 
 #[cfg(test)]
 mod tests;
@@ -128,6 +130,13 @@ impl VM {
                     self.sp -= num_elements;
                     self.push(array)?;
                 }
+                Opcode::OpHash => {
+                    let num_elements = read_u16(&self.instructions[ip + 1..ip + 3]) as usize;
+                    ip += 2;
+                    let hash = self.build_hash(self.sp - num_elements, self.sp)?;
+                    self.sp -= num_elements;
+                    self.push(hash)?;
+                }
                 _ => unimplemented!("opcode not implemented: {}", op)
             }
             ip += 1;
@@ -172,8 +181,8 @@ impl VM {
             }
             (left, right) => Err(anyhow!(
                 "unsupported types for binary operation: {} {}",
-                left,
-                right
+                left.type_name(),
+                right.type_name()
             )),
         }
     }
@@ -216,8 +225,8 @@ impl VM {
             },
             (left, right) => Err(anyhow!(
                 "unsupported types for comparison: {} {}",
-                left,
-                right
+                left.type_name(),
+                right.type_name()
             )),
         }
     }
@@ -255,9 +264,32 @@ impl VM {
     // Build an array from the stack
     pub fn build_array(&mut self, start_index: usize, end_index: usize) -> Result<Object> {
         let mut elements = vec![];
-        for i in start_index..end_index {
-            elements.push(self.stack[i].clone());
-        }
+        self.stack[start_index..end_index].iter().for_each(|elem| {
+            elements.push(elem.clone());
+        });
         return Ok(Object::Array(elements));
+    }
+
+    // Build a hash from the stack
+    pub fn build_hash(&mut self, start_index: usize, end_index: usize) -> Result<Object> {
+        let mut pairs = HashMap::new();
+        let result = self.stack[start_index..end_index]
+            .chunks_exact(2)
+            .try_for_each(|chunk| {
+                let key = chunk[0].clone();
+                let value = chunk[1].clone();
+
+                let key_type = key.type_name();
+                let key: HashKey = match key.into() {
+                    Some(key) => key,
+                    None => return Err(anyhow!("unusable as hash key: {}", key_type)),
+                };
+                pairs.insert(key, value);
+                Ok(())
+            });
+        match result {
+            Err(err) => Err(err),
+            Ok(_) => Ok(Object::Hash(pairs)),
+        }
     }
 }

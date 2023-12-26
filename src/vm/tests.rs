@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use crate::compiler::Compiler;
-use crate::parser::ast::{Node, Program};
 use crate::lexer::Lexer;
+use crate::object::HashKey;
+use crate::parser::ast::{Node, Program};
 use crate::parser::Parser;
 
 use super::*;
@@ -23,29 +26,11 @@ macro_rules! make_test_bool {
     };
 }
 
-macro_rules! make_test_null {
-    ($input:expr) => {
-        VMTestCase {
-            input: String::from($input),
-            expected: Object::Null,
-        }
-    };
-}
-
-macro_rules! make_test_string {
+macro_rules! make_test {
     ($input:expr, $expected:expr) => {
         VMTestCase {
             input: String::from($input),
-            expected: Object::String(String::from($expected)),
-        }
-    };
-}
-
-macro_rules! make_test_array {
-    ($input:expr, [$($expected:expr),*]) => {
-        VMTestCase {
-            input: String::from($input),
-            expected: Object::Array(vec![$(Object::Integer($expected)),*]),
+            expected: $expected,
         }
     };
 }
@@ -123,8 +108,8 @@ fn test_conditionals() {
         make_test_int!("if (1 < 2) { 10 }", 10),
         make_test_int!("if (1 < 2) { 10 } else { 20 }", 10),
         make_test_int!("if (1 > 2) { 10 } else { 20 }", 20),
-        make_test_null!("if (1 > 2) { 10 }"),
-        make_test_null!("if (false) { 10 }"),
+        make_test!("if (1 > 2) { 10 }", Object::Null),
+        make_test!("if (false) { 10 }", Object::Null),
         make_test_int!("if ((if (false) { 10 })) { 10 } else { 20 }", 20),
     ];
 
@@ -145,9 +130,12 @@ fn test_global_let_statements() {
 #[test]
 fn test_string_expressions() {
     let tests = vec![
-        make_test_string!(r#""monkey""#, "monkey"),
-        make_test_string!(r#""mon" + "key""#, "monkey"),
-        make_test_string!(r#""mon" + "key" + "banana""#, "monkeybanana"),
+        make_test!("\"monkey\"", Object::String(String::from("monkey"))),
+        make_test!("\"mon\" + \"key\"", Object::String(String::from("monkey"))),
+        make_test!(
+            "\"mon\" + \"key\" + \"banana\"",
+            Object::String(String::from("monkeybanana"))
+        ),
     ];
 
     run_vm_tests(tests);
@@ -156,14 +144,52 @@ fn test_string_expressions() {
 #[test]
 fn test_array_literals() {
     let tests = vec![
-        make_test_array!(r#"[]"#, []),
-        make_test_array!(r#"[1, 2, 3]"#, [1, 2, 3]),
-        make_test_array!(r#"[1 + 2, 3 * 4, 5 + 6]"#, [3, 12, 11]),
+        make_test!("[]", Object::Array(vec![])),
+        make_test!(
+            "[1, 2, 3]",
+            Object::Array(vec![
+                Object::Integer(1),
+                Object::Integer(2),
+                Object::Integer(3),
+            ])
+        ),
+        make_test!(
+            "[1 + 2, 3 * 4, 5 + 6]",
+            Object::Array(vec![
+                Object::Integer(3),
+                Object::Integer(12),
+                Object::Integer(11),
+            ])
+        ),
     ];
 
     run_vm_tests(tests);
 }
 
+#[test]
+fn test_hash_literals() {
+    let tests = vec![
+        make_test!("{}", Object::Hash(HashMap::new())),
+        make_test!(
+            "{1: 2, 2: 3}",
+            Object::Hash(HashMap::from([
+                (HashKey::Integer(1), Object::Integer(2)),
+                (HashKey::Integer(2), Object::Integer(3)),
+            ]))
+        ),
+        make_test!(
+            "{1 + 1: 2 * 2, 3 + 3: 4 * 4}",
+            Object::Hash(
+                HashMap::from([
+                    (HashKey::Integer(2), Object::Integer(4)),
+                    (HashKey::Integer(6), Object::Integer(16)),
+                ])
+            )
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
 
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);

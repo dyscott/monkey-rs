@@ -30,6 +30,7 @@ pub enum Opcode {
     OpGetGlobal,
     OpSetGlobal,
     OpArray,
+    OpHash,
 }
 
 pub struct Definition {
@@ -116,6 +117,10 @@ impl Opcode {
                 name: "OpArray",
                 operand_widths: vec![2],
             },
+            Opcode::OpHash => Definition {
+                name: "OpHash",
+                operand_widths: vec![2],
+            }
         }
     }
 }
@@ -130,7 +135,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpArray as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpHash as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {

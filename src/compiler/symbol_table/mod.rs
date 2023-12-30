@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
 #[cfg(test)]
 mod tests;
 
 type SymbolScope = &'static str;
+type OuterSymbolTable = Rc<RefCell<SymbolTable>>;
 
-const GLOBAL_SCOPE: SymbolScope = "GLOBAL";
+pub const GLOBAL_SCOPE: SymbolScope = "GLOBAL";
+pub const LOCAL_SCOPE: SymbolScope = "LOCAL";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Symbol {
@@ -16,23 +18,28 @@ pub struct Symbol {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SymbolTable {
+    pub outer: Option<Rc<RefCell<SymbolTable>>>,
     pub store: HashMap<String, Symbol>,
     pub num_definitions: usize,
 }
 
 impl SymbolTable {
-    pub fn new() -> Self {
+    pub fn new(outer: Option<OuterSymbolTable>) -> Rc<RefCell<Self>> {
         let store = HashMap::new();
-        SymbolTable {
+        Rc::new(RefCell::new(SymbolTable {
+            outer,
             store,
             num_definitions: 0,
-        }
+        }))
     }
 
     pub fn define(&mut self, name: &str) -> Symbol {
         let symbol = Symbol {
             name: name.to_string(),
-            scope: GLOBAL_SCOPE,
+            scope: match self.outer {
+                Some(_) => LOCAL_SCOPE,
+                None => GLOBAL_SCOPE,
+            },
             index: self.num_definitions,
         };
         self.store.insert(name.to_string(), symbol.clone());
@@ -41,6 +48,12 @@ impl SymbolTable {
     }
 
     pub fn resolve(&self, name: &str) -> Option<Symbol> {
-        self.store.get(name).cloned()
+        match self.store.get(name) {
+            Some(symbol) => Some(symbol.clone()),
+            None => match &self.outer {
+                Some(outer) => outer.borrow().resolve(name),
+                None => None,
+            },
+        }
     }
 }

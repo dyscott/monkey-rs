@@ -50,8 +50,9 @@ impl VM {
     pub fn new(bytecode: Bytecode) -> Self {
         let main_fn = CompiledFunction {
             instructions: bytecode.instructions,
+            num_locals: 0,
         };
-        let main_frame = Frame::new(main_fn);
+        let main_frame = Frame::new(main_fn, 0);
         let mut frames = Vec::with_capacity(MAX_FRAMES);
         frames.push(main_frame);
 
@@ -70,14 +71,40 @@ impl VM {
     pub fn reset(&mut self, bytecode: Bytecode) {
         let main_fn = CompiledFunction {
             instructions: bytecode.instructions,
+            num_locals: 0,
         };
-        let main_frame = Frame::new(main_fn);
+        let main_frame = Frame::new(main_fn, 0);
 
         self.frames = vec![main_frame];
         self.frames_index = 1;
         self.constants = bytecode.constants;
         self.stack = vec![Object::Null; STACK_SIZE];
         self.sp = 0;
+    }
+
+    
+    // Push an element onto the stack
+    fn push(&mut self, obj: Object) -> Result<()> {
+        if self.sp >= STACK_SIZE {
+            return Err(anyhow!("stack overflow"));
+        }
+        self.stack[self.sp] = obj;
+        self.sp += 1;
+        Ok(())
+    }
+
+    // Pop an element from the stack
+    fn pop(&mut self) -> Result<Object> {
+        if self.sp == 0 {
+            return Err(anyhow!("stack underflow"));
+        }
+        self.sp -= 1;
+        Ok(self.stack[self.sp].clone())
+    }
+
+    // Get the last element popped from the stack
+    pub fn last_popped_stack_elem(&self) -> Object {
+        return self.stack[self.sp].clone();
     }
 
     // Get the top element of the stack
@@ -196,7 +223,9 @@ impl VM {
                 }
                 Opcode::OpCall => {
                     if let Object::CompiledFunction(compiled_fn) = self.stack[self.sp - 1].clone() {
-                        let frame = Frame::new(compiled_fn);
+                        let num_locals = compiled_fn.num_locals;
+                        let frame = Frame::new(compiled_fn, self.sp);
+                        self.sp = frame.base_pointer + num_locals;
                         self.push_frame(frame)?;
 
                         continue;
@@ -207,48 +236,40 @@ impl VM {
                 Opcode::OpReturnValue => {
                     let return_value = self.pop()?;
 
-                    self.pop_frame()?;
+                    let frame = self.pop_frame()?;
                     ip = self.current_frame().ip;
-                    self.pop()?;
+                    self.sp = frame.base_pointer - 1;
                     
                     self.push(return_value)?;
                 }
                 Opcode::OpReturn => {
-                    self.pop_frame()?;
+                    let frame = self.pop_frame()?;
                     ip = self.current_frame().ip;
-                    self.pop()?;
+                    self.sp = frame.base_pointer - 1;
 
                     self.push(NULL.clone())?;
+                }
+                Opcode::OpSetLocal => {
+                    let local_index = ins[ip + 1] as usize;
+                    ip += 1;
+
+                    let frame_base_pointer = self.current_frame().base_pointer;
+
+                    self.stack[frame_base_pointer + local_index] = self.pop()?;
+                }
+                Opcode::OpGetLocal => {
+                    let local_index = ins[ip + 1] as usize;
+                    ip += 1;
+
+                    let frame_base_pointer = self.current_frame().base_pointer;
+
+                    self.push(self.stack[frame_base_pointer + local_index].clone())?;
                 }
                 _ => unimplemented!("opcode not implemented: {}", op),
             }
             self.current_frame().ip = ip + 1;
         }
         Ok(())
-    }
-
-    // Push an element onto the stack
-    fn push(&mut self, obj: Object) -> Result<()> {
-        if self.sp >= STACK_SIZE {
-            return Err(anyhow!("stack overflow"));
-        }
-        self.stack[self.sp] = obj;
-        self.sp += 1;
-        Ok(())
-    }
-
-    // Pop an element from the stack
-    fn pop(&mut self) -> Result<Object> {
-        if self.sp == 0 {
-            return Err(anyhow!("stack underflow"));
-        }
-        self.sp -= 1;
-        Ok(self.stack[self.sp].clone())
-    }
-
-    // Get the last element popped from the stack
-    pub fn last_popped_stack_elem(&self) -> Object {
-        return self.stack[self.sp].clone();
     }
 
     // Execute a binary operator

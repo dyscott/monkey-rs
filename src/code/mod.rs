@@ -36,6 +36,8 @@ pub enum Opcode {
     OpCall,
     OpReturnValue,
     OpReturn,
+    OpGetLocal,
+    OpSetLocal,
 }
 
 pub struct Definition {
@@ -145,7 +147,15 @@ impl Opcode {
             Opcode::OpReturn => Definition {
                 name: "OpReturn",
                 operand_widths: vec![]
-            }
+            },
+            Opcode::OpGetLocal => Definition {
+                name: "OpGetLocal",
+                operand_widths: vec![1]
+            },
+            Opcode::OpSetLocal => Definition {
+                name: "OpSetLocal",
+                operand_widths: vec![1]
+            },
         }
     }
 }
@@ -160,7 +170,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpReturn as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpSetLocal as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {
@@ -184,6 +194,9 @@ pub fn make(op: Opcode, operands: Vec<u64>) -> Instructions {
             2 => {
                 instruction[offset] = ((*operand >> 8) & 0xff) as u8;
                 instruction[offset + 1] = (*operand & 0xff) as u8;
+            }
+            1 => {
+                instruction[offset] = (*operand & 0xff) as u8;
             }
             _ => unimplemented!(),
         }
@@ -250,7 +263,11 @@ pub fn read_operands(def: &Definition, instructions: InstructionsSlice) -> (Vec<
             2 => {
                 let operand = u64::from(read_u16(&instructions[offset..]));
                 operands.push(operand);
-            }
+            },
+            1 => {
+                let operand = u64::from(instructions[offset]);
+                operands.push(operand);
+            },
             _ => panic!("Unhandled operand width: {}", width)
         }
         offset += width;

@@ -19,6 +19,11 @@ fn test_make() {
             operands: vec![],
             expected: vec![Opcode::OpAdd as u8],
         },
+        Test {
+            op: Opcode::OpGetLocal,
+            operands: vec![255],
+            expected: vec![Opcode::OpGetLocal as u8, 255],
+        },
     ];
 
     for test in tests {
@@ -31,14 +36,16 @@ fn test_make() {
 fn test_instructions_string() {
     let instructions = vec![
         make!(OpAdd),
+        make!(OpGetLocal, [1]),
         make!(OpConstant, [2]),
         make!(OpConstant, [65535]),
     ];
 
     let expected = String::from(
         "0000 OpAdd\n\
-         0001 OpConstant 2\n\
-         0004 OpConstant 65535\n",
+         0001 OpGetLocal 1\n\
+         0003 OpConstant 2\n\
+         0006 OpConstant 65535\n",
     );
 
     let mut concatted = Instructions::new();
@@ -61,6 +68,11 @@ fn test_read_operands() {
             op: Opcode::OpConstant,
             operands: vec![65535],
             bytes_read: 2,
+        },
+        Test {
+            op: Opcode::OpGetLocal,
+            operands: vec![255],
+            bytes_read: 1,
         },
     ];
 

@@ -297,6 +297,59 @@ fn test_first_class_functions() {
     let tests = vec![
         make_test_int!("let returnsOne = fn() { 1; }; let returnsOneReturner = fn() { returnsOne; }; returnsOneReturner()();", 1),
         make_test_int!("let returnsOneReturner = fn() { let returnsOne = fn() { 1; }; returnsOne; }; returnsOneReturner()();", 1),
+        make_test_int!(r#"
+            let returnsOneReturner = fn() {
+                let returnsOne = fn() { 1; };
+                returnsOne;
+            };
+            returnsOneReturner()();
+            "#,
+            1
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_calling_functions_with_bindings() {
+    let tests = vec![
+        make_test_int!(
+            "let one = fn() { let one = 1; one }; one();",
+            1
+        ),
+        make_test_int!(
+            "let oneAndTwo = fn() { let one = 1; let two = 2; one + two; }; oneAndTwo();",
+            3
+        ),
+        make_test_int!(r#"
+            let oneAndTwo = fn() { let one = 1; let two = 2; one + two; };
+            let threeAndFour = fn() { let three = 3; let four = 4; three + four; };
+            oneAndTwo() + threeAndFour();
+            "#,
+            10
+        ),
+        make_test_int!(r#"
+            let firstFoobar = fn() { let foobar = 50; foobar; };
+            let secondFoobar = fn() { let foobar = 100; foobar; };
+            firstFoobar() + secondFoobar();
+            "#,
+            150
+        ),
+        make_test_int!(r#"
+            let globalSeed = 50;
+            let minusOne = fn() {
+            let num = 1;
+            globalSeed - num;
+            }
+            let minusTwo = fn() {
+            let num = 2;
+            globalSeed - num;
+            }
+            minusOne() + minusTwo();
+            "#,
+            97
+        ),
     ];
 
     run_vm_tests(tests);

@@ -21,6 +21,7 @@ macro_rules! make_compiled_function {
     ($instructions:expr) => {
         Object::CompiledFunction(CompiledFunction {
             instructions: concat_instructions($instructions),
+            num_locals:  0,
         })
     };
 }
@@ -543,6 +544,7 @@ fn test_functions() {
 #[test]
 fn test_compiler_scopes() {
     let mut compiler = Compiler::new();
+    let global_sym = compiler.symbol_table.clone();
 
     assert_eq!(compiler.scope_index, 0);
 
@@ -561,9 +563,12 @@ fn test_compiler_scopes() {
             .opcode,
         Opcode::OpSub
     );
+    assert_eq!(compiler.symbol_table.clone().borrow().outer, Some(global_sym.clone()));
 
     compiler.leave_scope();
     assert_eq!(compiler.scope_index, 0);
+    assert_eq!(compiler.symbol_table.clone(), global_sym);
+    assert_eq!(compiler.symbol_table.clone().borrow().outer, None);
 
     compiler.emit(Opcode::OpAdd, vec![]);
 
@@ -632,6 +637,55 @@ fn test_function_calls() {
     run_compiler_tests(tests);
 }
 
+#[test]
+fn test_let_statement_scopes() {
+    let tests = vec![
+        make_test!(
+            "let num = 55; fn() { num }";
+            Object::Integer(55),
+            make_compiled_function!(vec![
+                make!(OpGetGlobal, [0]),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [0]),
+            make!(OpSetGlobal, [0]),
+            make!(OpConstant, [1]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "fn() { let num = 55; num }";
+            Object::Integer(55),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpSetLocal, [0]),
+                make!(OpGetLocal, [0]),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [1]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "fn() { let a = 55; let b = 77; a + b }";
+            Object::Integer(55),
+            Object::Integer(77),
+            make_compiled_function!(vec![
+                make!(OpConstant, [0]),
+                make!(OpSetLocal, [0]),
+                make!(OpConstant, [1]),
+                make!(OpSetLocal, [1]),
+                make!(OpGetLocal, [0]),
+                make!(OpGetLocal, [1]),
+                make!(OpAdd),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [2]),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
@@ -671,5 +725,16 @@ fn concat_instructions(instructions: Vec<Instructions>) -> Instructions {
 }
 
 fn test_constants(expected: Vec<Object>, actual: Vec<Object>) {
-    assert_eq!(expected, actual);
+    for (i, obj) in expected.iter().enumerate() {
+        match obj {
+            Object::CompiledFunction(expected) => {
+                let actual = match &actual[i] {
+                    Object::CompiledFunction(actual) => actual,
+                    _ => panic!("object is not a CompiledFunction: {:?}", &actual[i]),
+                };
+                assert_eq!(expected.instructions, actual.instructions);
+            }
+            _ => assert_eq!(obj, &actual[i]),
+        }
+    }
 }

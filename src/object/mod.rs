@@ -17,6 +17,7 @@ pub type BuiltInFunction = fn(Vec<Object>) -> Result<Object>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompiledFunction {
     pub instructions: Instructions,
+    pub num_locals: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]

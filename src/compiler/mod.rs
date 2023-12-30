@@ -1,5 +1,8 @@
 pub mod symbol_table;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::code::{make, Instructions, Opcode};
 use crate::lexer::token::Token;
 use crate::object::{CompiledFunction, Object};
@@ -7,6 +10,8 @@ use crate::parser::ast::{Expression, Node, Program, Statement};
 use crate::token;
 use anyhow::{anyhow, Result};
 use symbol_table::SymbolTable;
+
+use self::symbol_table::{GLOBAL_SCOPE, LOCAL_SCOPE};
 
 #[cfg(test)]
 mod tests;
@@ -23,7 +28,7 @@ macro_rules! emit {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Compiler {
     constants: Vec<Object>,
-    symbol_table: SymbolTable,
+    symbol_table: Rc<RefCell<SymbolTable>>,
     scopes: Vec<CompilationScope>,
     scope_index: usize,
 }
@@ -57,7 +62,7 @@ impl Compiler {
         };
         Self {
             constants: vec![],
-            symbol_table: SymbolTable::new(),
+            symbol_table: SymbolTable::new(None),
             scopes: vec![main_scope],
             scope_index: 0,
         }
@@ -83,12 +88,21 @@ impl Compiler {
         };
         self.scopes.push(scope);
         self.scope_index += 1;
+
+        self.symbol_table = SymbolTable::new(Some(self.symbol_table.clone()));
     }
 
     // Leave the current scope
     fn leave_scope(&mut self) -> Instructions {
         let scope = self.scopes.pop().unwrap();
         self.scope_index -= 1;
+
+        let old_symbol_table = self.symbol_table.clone();
+        self.symbol_table = match old_symbol_table.borrow().outer {
+            Some(ref outer) => outer.clone(),
+            None => old_symbol_table.clone(), // This should never happen
+        };
+
         return scope.instructions;
     }
 
@@ -129,8 +143,12 @@ impl Compiler {
             }
             Statement::Let(name, expression) => {
                 self.compile_node(&Node::Expression(expression))?;
-                let symbol = self.symbol_table.define(name);
-                emit!(self, Opcode::OpSetGlobal, [symbol.index as u64]);
+                let symbol = self.symbol_table.borrow_mut().define(name);
+                match symbol.scope {
+                    GLOBAL_SCOPE => emit!(self, Opcode::OpSetGlobal, [symbol.index as u64]),
+                    LOCAL_SCOPE => emit!(self, Opcode::OpSetLocal, [symbol.index as u64]),
+                    _ => Err(anyhow!("unknown scope: {}", symbol.scope))?,
+                };
             }
             Statement::Return(expression) => {
                 self.compile_node(&Node::Expression(expression))?;
@@ -238,9 +256,14 @@ impl Compiler {
             Expression::Identifier(name) => {
                 let symbol = self
                     .symbol_table
+                    .borrow()
                     .resolve(name)
                     .ok_or_else(|| anyhow!("undefined variable: {}", name))?;
-                emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]);
+                if symbol.scope == GLOBAL_SCOPE {
+                    emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]);
+                } else {
+                    emit!(self, Opcode::OpGetLocal, [symbol.index as u64]);
+                }
             }
             Expression::Index(left, index) => {
                 self.compile_node(&Node::Expression(left))?;
@@ -274,10 +297,11 @@ impl Compiler {
                 if !self.last_instruction_is(Opcode::OpReturnValue) {
                     emit!(self, Opcode::OpReturn);
                 }
-
+                
+                let num_locals = self.symbol_table.borrow().num_definitions;
                 let instructions = self.leave_scope();
 
-                let compiled_fn = Object::CompiledFunction(CompiledFunction { instructions });
+                let compiled_fn = Object::CompiledFunction(CompiledFunction { instructions, num_locals });
                 let constant = self.add_constant(compiled_fn);
                 emit!(self, Opcode::OpConstant, [constant as u64]);
             }

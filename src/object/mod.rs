@@ -18,6 +18,7 @@ pub type BuiltInFunction = fn(Vec<Object>) -> Result<Object>;
 pub struct CompiledFunction {
     pub instructions: Instructions,
     pub num_locals: usize,
+    pub num_parameters: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,8 +74,8 @@ impl Display for Object {
             Object::BuiltInFunction(_) => {
                 write!(f, "builtin function")
             }
-            Object::CompiledFunction(_) => {
-                write!(f, "compiled function")
+            Object::CompiledFunction(func) => {
+                write!(f, "CompiledFunction[{:p}]", &func)
             }
             Object::Null => {
                 write!(f, "null")

@@ -138,7 +138,7 @@ impl Opcode {
             },
             Opcode::OpCall => Definition {
                 name: "OpCall",
-                operand_widths: vec![]
+                operand_widths: vec![1]
             },
             Opcode::OpReturnValue => Definition {
                 name: "OpReturnValue",

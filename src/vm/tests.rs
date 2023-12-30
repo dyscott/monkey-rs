@@ -355,6 +355,64 @@ fn test_calling_functions_with_bindings() {
     run_vm_tests(tests);
 }
 
+#[test]
+fn test_calling_functions_with_arguments_and_bindings() {
+    let tests = vec![
+        make_test_int!("let identity = fn(a) { a; }; identity(4);", 4),
+        make_test_int!("let sum = fn(a, b) { a + b; }; sum(1, 2);", 3),
+        make_test_int!("let sum = fn(a, b) { let c = a + b; c; }; sum(1, 2);", 3),
+        make_test_int!("let sum = fn(a, b) { let c = a + b; c; }; sum(1, 2) + sum(3, 4);", 10),
+        make_test_int!(r#"
+            let sum = fn(a, b) {
+                let c = a + b;
+                c;
+            };
+            let outer = fn() {
+                sum(1, 2) + sum(3, 4);
+            };
+            outer();
+            "#,
+            10
+        ),
+        make_test_int!(r#"
+            let globalNum = 10;
+            let sum = fn(a, b) {
+                let c = a + b;
+                c + globalNum;
+            };
+            let outer = fn() {
+                sum(1, 2) + sum(3, 4) + globalNum;
+            };
+            outer() + globalNum;
+            "#,
+            50
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_calling_functions_with_wrong_arguments() {
+    let tests = vec![
+        ("fn() { 1; }(1);", "wrong number of arguments: want=0, got=1"),
+        ("fn(a) { a; }();", "wrong number of arguments: want=1, got=0"),
+        ("fn(a, b) { a + b; }(1);", "wrong number of arguments: want=2, got=1"),
+    ];
+
+    for (input, expected) in tests {
+        let program = parse(String::from(input));
+        let mut compiler = Compiler::new();
+        compiler.compile_node(&Node::Program(&program)).unwrap();
+        let bytecode = compiler.bytecode();
+
+        let mut vm = VM::new(bytecode);
+        let err = vm.run().unwrap_err();
+
+        assert_eq!(err.to_string(), expected);
+    }
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

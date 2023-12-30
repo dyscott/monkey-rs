@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     code::{read_u16, Opcode},
     compiler::Bytecode,
-    object::{HashKey, Object, CompiledFunction},
+    object::{CompiledFunction, HashKey, Object},
 };
 use anyhow::{anyhow, Result};
 use frame::Frame;
@@ -51,6 +51,7 @@ impl VM {
         let main_fn = CompiledFunction {
             instructions: bytecode.instructions,
             num_locals: 0,
+            num_parameters: 0,
         };
         let main_frame = Frame::new(main_fn, 0);
         let mut frames = Vec::with_capacity(MAX_FRAMES);
@@ -72,6 +73,7 @@ impl VM {
         let main_fn = CompiledFunction {
             instructions: bytecode.instructions,
             num_locals: 0,
+            num_parameters: 0,
         };
         let main_frame = Frame::new(main_fn, 0);
 
@@ -82,7 +84,6 @@ impl VM {
         self.sp = 0;
     }
 
-    
     // Push an element onto the stack
     fn push(&mut self, obj: Object) -> Result<()> {
         if self.sp >= STACK_SIZE {
@@ -222,16 +223,12 @@ impl VM {
                     self.exec_slice_index_op(left, start, stop)?;
                 }
                 Opcode::OpCall => {
-                    if let Object::CompiledFunction(compiled_fn) = self.stack[self.sp - 1].clone() {
-                        let num_locals = compiled_fn.num_locals;
-                        let frame = Frame::new(compiled_fn, self.sp);
-                        self.sp = frame.base_pointer + num_locals;
-                        self.push_frame(frame)?;
+                    let num_args = ins[ip + 1] as usize;
+                    self.current_frame().ip += 1;
 
-                        continue;
-                    } else {
-                        return Err(anyhow!("calling non-function"));
-                    }
+                    self.call_function(num_args)?;
+
+                    continue;
                 }
                 Opcode::OpReturnValue => {
                     let return_value = self.pop()?;
@@ -239,7 +236,7 @@ impl VM {
                     let frame = self.pop_frame()?;
                     ip = self.current_frame().ip;
                     self.sp = frame.base_pointer - 1;
-                    
+
                     self.push(return_value)?;
                 }
                 Opcode::OpReturn => {
@@ -428,11 +425,7 @@ impl VM {
     }
 
     // Execute the index operator on a hash
-    fn exec_hash_index(
-        &mut self,
-        pairs: HashMap<HashKey, Object>,
-        index: Object,
-    ) -> Result<()> {
+    fn exec_hash_index(&mut self, pairs: HashMap<HashKey, Object>, index: Object) -> Result<()> {
         let index_type = index.type_name();
         let key = match index.into() {
             Some(key) => key,
@@ -554,5 +547,28 @@ impl VM {
             None => self.push(Object::String("".to_string()))?,
         };
         Ok(())
+    }
+
+    // Call a function
+    fn call_function(&mut self, num_args: usize) -> Result<()> {
+        if let Object::CompiledFunction(compiled_fn) = self.stack[self.sp - 1 - num_args].clone() {
+            let num_locals = compiled_fn.num_locals;
+            let num_params = compiled_fn.num_parameters;
+
+            if num_args != num_params {
+                return Err(anyhow!(
+                    "wrong number of arguments: want={}, got={}",
+                    num_params,
+                    num_args
+                ));
+            }
+
+            let frame = Frame::new(compiled_fn, self.sp - num_args);
+            self.sp = frame.base_pointer + num_locals;
+            self.push_frame(frame)?;
+            return Ok(())
+        } else {
+            return Err(anyhow!("calling non-function"));
+        }
     }
 }

@@ -286,8 +286,12 @@ impl Compiler {
                 };
                 emit!(self, Opcode::OpSliceIndex);
             }
-            Expression::Function(_, body) => {
+            Expression::Function(params, body) => {
                 self.enter_scope();
+
+                for param in params {
+                    self.symbol_table.borrow_mut().define(param);
+                }
 
                 self.compile_node(&Node::Statement(body))?;
 
@@ -297,18 +301,27 @@ impl Compiler {
                 if !self.last_instruction_is(Opcode::OpReturnValue) {
                     emit!(self, Opcode::OpReturn);
                 }
-                
+
                 let num_locals = self.symbol_table.borrow().num_definitions;
+                let num_parameters = params.len();
                 let instructions = self.leave_scope();
 
-                let compiled_fn = Object::CompiledFunction(CompiledFunction { instructions, num_locals });
+                let compiled_fn = Object::CompiledFunction(CompiledFunction {
+                    instructions,
+                    num_locals,
+                    num_parameters,
+                });
                 let constant = self.add_constant(compiled_fn);
                 emit!(self, Opcode::OpConstant, [constant as u64]);
             }
-            Expression::Call(function, _) => {
+            Expression::Call(function, args) => {
                 self.compile_node(&Node::Expression(function))?;
 
-                emit!(self, Opcode::OpCall);
+                for arg in args {
+                    self.compile_node(&Node::Expression(arg))?;
+                }
+
+                emit!(self, Opcode::OpCall, [args.len() as u64]);
             }
         }
         Ok(())

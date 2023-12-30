@@ -22,6 +22,7 @@ macro_rules! make_compiled_function {
         Object::CompiledFunction(CompiledFunction {
             instructions: concat_instructions($instructions),
             num_locals:  0,
+            num_parameters: 0,
         })
     };
 }
@@ -616,7 +617,7 @@ fn test_function_calls() {
                 make!(OpReturnValue),
             ]);
             make!(OpConstant, [1]),
-            make!(OpCall),
+            make!(OpCall, [0]),
             make!(OpPop)
         ),
         make_test!(
@@ -629,7 +630,43 @@ fn test_function_calls() {
             make!(OpConstant, [1]),
             make!(OpSetGlobal, [0]),
             make!(OpGetGlobal, [0]),
-            make!(OpCall),
+            make!(OpCall, [0]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "let oneArg = fn(a) { a }; oneArg(24);";
+            make_compiled_function!(vec![
+                make!(OpGetLocal, [0]),
+                make!(OpReturnValue),
+            ]),
+            Object::Integer(24);
+            make!(OpConstant, [0]),
+            make!(OpSetGlobal, [0]),
+            make!(OpGetGlobal, [0]),
+            make!(OpConstant, [1]),
+            make!(OpCall, [1]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "let manyArg = fn(a, b, c) { a; b; c }; manyArg(24, 25, 26);";
+            make_compiled_function!(vec![
+                make!(OpGetLocal, [0]),
+                make!(OpPop),
+                make!(OpGetLocal, [1]),
+                make!(OpPop),
+                make!(OpGetLocal, [2]),
+                make!(OpReturnValue),
+            ]),
+            Object::Integer(24),
+            Object::Integer(25),
+            Object::Integer(26);
+            make!(OpConstant, [0]),
+            make!(OpSetGlobal, [0]),
+            make!(OpGetGlobal, [0]),
+            make!(OpConstant, [1]),
+            make!(OpConstant, [2]),
+            make!(OpConstant, [3]),
+            make!(OpCall, [3]),
             make!(OpPop)
         ),
     ];

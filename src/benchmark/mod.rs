@@ -46,7 +46,7 @@ pub fn benchmark_file(path: String) -> Result<()> {
         println!("Error occurred during evaluation:");
         println!("\tError: {}", error)
     }
-    println!("Evaluation took: {:?}", duration);
+    println!("Evaluation (interpreter) took: {:?}", duration);
 
     // Compile the file
     let mut compiler = Compiler::new();
@@ -78,7 +78,7 @@ pub fn benchmark_file(path: String) -> Result<()> {
         return Ok(());
     }
 
-    println!("Execution took: {:?}", duration);
+    println!("Execution (VM) took: {:?}", duration);
 
     Ok(())
 }

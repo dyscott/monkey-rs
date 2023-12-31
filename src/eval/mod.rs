@@ -1,19 +1,12 @@
-mod environment;
-mod object;
-mod builtins;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use std::{cell::RefCell, rc::Rc, collections::HashMap};
-
-use crate::{
-    parser::ast::{Expression, Node, Program, Statement},
-    lexer::token::Token,
-};
+use crate::object::{environment::Environment, HashKey, Object, builtins};
 use crate::token;
+use crate::{
+    lexer::token::Token,
+    parser::ast::{Expression, Node, Program, Statement},
+};
 use anyhow::{anyhow, Result};
-use environment::Environment;
-use object::Object;
-
-use self::object::HashKey;
 
 #[cfg(test)]
 mod tests;
@@ -41,12 +34,10 @@ impl Evaluator {
 
     // Evaluate a AST node
     fn eval_node(&mut self, node: Node) -> Result<Object> {
-        stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
-            match node {
-                Node::Program(program) => self.eval_program(&program),
-                Node::Statement(statement) => self.eval_statement(statement),
-                Node::Expression(expression) => self.eval_expression(expression),
-            }
+        stacker::maybe_grow(32 * 1024, 1024 * 1024, || match node {
+            Node::Program(program) => self.eval_program(&program),
+            Node::Statement(statement) => self.eval_statement(statement),
+            Node::Expression(expression) => self.eval_expression(expression),
         })
     }
 
@@ -116,14 +107,16 @@ impl Evaluator {
                 self.eval_if_expression(condition, consequence, alternative)
             }
             Expression::Identifier(name) => self.eval_identifier_expression(name),
-            Expression::Function(params, body) => Ok(Object::Function(
+            Expression::Function(params, body, _) => Ok(Object::Function(
                 params.clone(),
                 body.clone(),
                 self.env.clone(),
             )),
             Expression::Call(function, args) => self.eval_function_call_expression(function, args),
             Expression::Index(left, index) => self.eval_index_expression(left, index),
-            Expression::SliceIndex(left, start, stop) => self.eval_slice_index_expression(left, start, stop),
+            Expression::SliceIndex(left, start, stop) => {
+                self.eval_slice_index_expression(left, start, stop)
+            }
         }
     }
 
@@ -137,9 +130,12 @@ impl Evaluator {
     }
 
     // Evaluate a hash literal expression
-    fn eval_hash_literal_expression(&mut self, elements: &Vec<(Expression, Expression)>) -> Result<Object> {
+    fn eval_hash_literal_expression(
+        &mut self,
+        elements: &Vec<(Expression, Expression)>,
+    ) -> Result<Object> {
         let mut pairs = HashMap::new();
-        
+
         for (key, value) in elements {
             let key = self.eval_node(Node::Expression(key))?;
             let value = self.eval_node(Node::Expression(value))?;
@@ -377,14 +373,18 @@ impl Evaluator {
             Object::Array(elements) => {
                 let start = match start {
                     Some(Object::Integer(start)) if start < 0 => elements.len() as i64 + start,
-                    Some(Object::Integer(start)) if start > elements.len() as i64 => elements.len() as i64,
+                    Some(Object::Integer(start)) if start > elements.len() as i64 => {
+                        elements.len() as i64
+                    }
                     Some(Object::Integer(start)) => start,
                     Some(_) => return Err(anyhow!("slice start must be an integer")),
                     None => 0,
                 };
                 let stop = match stop {
                     Some(Object::Integer(stop)) if stop < 0 => elements.len() as i64 + stop,
-                    Some(Object::Integer(stop)) if stop > elements.len() as i64 => elements.len() as i64,
+                    Some(Object::Integer(stop)) if stop > elements.len() as i64 => {
+                        elements.len() as i64
+                    }
                     Some(Object::Integer(stop)) => stop,
                     Some(_) => return Err(anyhow!("slice stop must be an integer")),
                     None => elements.len() as i64,
@@ -397,14 +397,18 @@ impl Evaluator {
             Object::String(string) => {
                 let start = match start {
                     Some(Object::Integer(start)) if start < 0 => string.len() as i64 + start,
-                    Some(Object::Integer(start)) if start > string.len() as i64 => string.len() as i64,
+                    Some(Object::Integer(start)) if start > string.len() as i64 => {
+                        string.len() as i64
+                    }
                     Some(Object::Integer(start)) => start,
                     Some(_) => return Err(anyhow!("slice start must be an integer")),
                     None => 0,
                 };
                 let stop = match stop {
                     Some(Object::Integer(stop)) if stop < 0 => string.len() as i64 + stop,
-                    Some(Object::Integer(stop)) if stop > string.len() as i64 => string.len() as i64,
+                    Some(Object::Integer(stop)) if stop > string.len() as i64 => {
+                        string.len() as i64
+                    }
                     Some(Object::Integer(stop)) => stop,
                     Some(_) => return Err(anyhow!("slice stop must be an integer")),
                     None => string.len() as i64,
@@ -414,7 +418,10 @@ impl Evaluator {
                     None => Ok(Object::String("".to_string())),
                 }
             }
-            _ => Err(anyhow!("slice operator not supported: {}", left.type_name())),
+            _ => Err(anyhow!(
+                "slice operator not supported: {}",
+                left.type_name()
+            )),
         }
     }
 }

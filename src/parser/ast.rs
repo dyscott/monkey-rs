@@ -52,7 +52,7 @@ pub enum Expression {
     Prefix(Token, Box<Expression>),
     Infix(Token, Box<Expression>, Box<Expression>),
     If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
-    Function(Vec<String>, Box<Statement>),
+    Function(Vec<String>, Box<Statement>, Option<String>),
     Call(Box<Expression>, Vec<Expression>),
     Index(Box<Expression>, Box<Expression>),
     SliceIndex(Box<Expression>, Option<Box<Expression>>, Option<Box<Expression>>)
@@ -106,13 +106,17 @@ impl Display for Expression {
             Expression::If(condition, consequence, None) => {
                 write!(f, "if ({}) {{{}}}", condition, consequence)
             }
-            Expression::Function(params, body) => {
+            Expression::Function(params, body, name) => {
                 let params = params
                     .iter()
                     .map(|p| format!("{}", p))
                     .collect::<Vec<String>>()
                     .join(", ");
-                write!(f, "fn({}) {{{}}}", params, body)
+                if let Some(name) = name {
+                    write!(f, "fn {}({}) {{{}}}", name, params, body)
+                } else {
+                    write!(f, "fn({}) {{{}}}", params, body)
+                }
             }
             Expression::Call(function, args) => {
                 let args = args

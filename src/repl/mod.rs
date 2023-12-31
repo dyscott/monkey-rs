@@ -1,14 +1,15 @@
-use crate::lexer::Lexer;
-use crate::parser::Parser;
 use crate::eval::Evaluator;
+use crate::parser::Parser;
+use crate::vm::VM;
+use crate::{compiler::Compiler, lexer::Lexer};
 
 use anyhow::Result;
-use std::io::{Stdin, stdout, Write};
+use std::io::{stdout, Stdin, Write};
 use whoami::username;
 
 const PROMPT: &str = ">> ";
 
-pub fn start(input: &mut Stdin) -> Result<()> {
+pub fn start(input: &mut Stdin, eval: bool) -> Result<()> {
     let mut buffer = String::new();
 
     let user = username();
@@ -16,6 +17,9 @@ pub fn start(input: &mut Stdin) -> Result<()> {
     println!("Feel free to type in commands or 'exit' to exit the REPL");
 
     let mut evaluator = Evaluator::default();
+    let mut compiler = Compiler::new();
+    let mut vm = VM::default();
+
     loop {
         // Prompt and read input
         buffer.clear();
@@ -40,17 +44,44 @@ pub fn start(input: &mut Stdin) -> Result<()> {
             continue;
         }
 
-        // Evaluate the input
-        let evaluated = evaluator.eval(&program);
-        match evaluated {
-            Ok(evaluated) => {
-                println!("{}", evaluated);
+        if eval {
+            // Use the evaluator instead of the compiler
+            let evaluated = evaluator.eval(&program);
+            match evaluated {
+                Ok(evaluated) => {
+                    println!("{}", evaluated);
+                }
+                Err(error) => {
+                    println!("Error occurred during evaluation:");
+                    println!("\tError: {}", error)
+                }
             }
-            Err(error) => {
-                println!("Error occurred during evaluation:");
-                println!("\tError: {}", error)
-            }
+            continue;
         }
+
+        // Compile the input
+        let result = compiler.compile(&program);
+        if let Err(error) = result {
+            println!("Error occurred during compilation:");
+            println!("\tError: {}", error);
+            compiler.reset();
+            continue;
+        }
+        let bytecode = compiler.bytecode().clone();
+        compiler.reset();
+
+        // Run the input
+        vm.reset(bytecode);
+        let result = vm.run();
+        if let Err(error) = result {
+            println!("Error occurred during execution:");
+            println!("\tError: {}", error);
+            continue;
+        }
+
+        // Print the stack top
+        let stack_elem = vm.last_popped_stack_elem();
+        println!("{}", stack_elem);
     }
 
     Ok(())

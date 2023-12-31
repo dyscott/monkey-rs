@@ -8,8 +8,9 @@ use anyhow::Result;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::time::Instant;
 
-pub fn run_file(path: String, eval: bool) -> Result<()> {
+pub fn benchmark_file(path: String) -> Result<()> {
     // Open the file
     let path = Path::new(&path);
     let mut file = File::open(path)?;
@@ -19,9 +20,12 @@ pub fn run_file(path: String, eval: bool) -> Result<()> {
     file.read_to_string(&mut contents)?;
 
     // Parse the file
-    let lexer = Lexer::new(contents);
+    let start = Instant::now(); // Start timer
+    let lexer = Lexer::new(contents.clone());
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
+    let duration = start.elapsed(); // Stop timer
+
     if !parser.errors.is_empty() {
         println!("Error(s) occurred during parsing:");
         for error in parser.errors {
@@ -30,36 +34,51 @@ pub fn run_file(path: String, eval: bool) -> Result<()> {
         return Ok(());
     }
 
-    if eval {
-        // Use the evaluator instead of the compiler
-        let mut evaluator = Evaluator::default();
-        let evaluated = evaluator.eval(&program);
-        if let Err(error) = evaluated {
-            println!("Error occurred during evaluation:");
-            println!("\tError: {}", error)
-        }
+    println!("Parsing took: {:?}", duration);
 
-        return Ok(());
+    // Evaluate the file
+    let mut evaluator = Evaluator::default();
+
+    let start = Instant::now(); // Start timer
+    let evaluated = evaluator.eval(&program);
+    let duration = start.elapsed(); // Stop timer
+    if let Err(error) = evaluated {
+        println!("Error occurred during evaluation:");
+        println!("\tError: {}", error)
     }
+    println!("Evaluation (interpreter) took: {:?}", duration);
 
     // Compile the file
     let mut compiler = Compiler::new();
+
+    let start = Instant::now(); // Start timer
     let result = compiler.compile(&program);
+    let duration = start.elapsed(); // Stop timer
+
     if let Err(error) = result {
         println!("Error occurred during compilation:");
         println!("\tError: {}", error);
         return Ok(());
     }
+
+    println!("Compilation took: {:?}", duration);
+
     let bytecode = compiler.bytecode();
 
     // Run the file
     let mut vm = VM::new(bytecode);
+
+    let start = Instant::now(); // Start timer
     let result = vm.run();
+    let duration = start.elapsed(); // Stop timer
+
     if let Err(error) = result {
         println!("Error occurred during execution:");
         println!("\tError: {}", error);
         return Ok(());
     }
+
+    println!("Execution (VM) took: {:?}", duration);
 
     Ok(())
 }

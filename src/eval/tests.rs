@@ -1,5 +1,5 @@
-use crate::eval::object::HashKey;
 use crate::lexer::Lexer;
+use crate::object::HashKey;
 use crate::parser::Parser;
 use anyhow::Result;
 
@@ -178,8 +178,6 @@ fn test_function_object() {
 
     let evaluated = eval_test(input).unwrap();
 
-    println!("{}", evaluated);
-
     assert!(matches!(evaluated,
         Object::Function(params, body, _)
             if params == vec!["x".to_string()]
@@ -293,7 +291,6 @@ fn test_builtin_functions() {
     ];
 
     for (input, expected) in tests {
-        println!("{}", input);
         let evaluated = eval_test(input.to_string());
         match expected {
             Ok(expected) => assert_eq!(evaluated.unwrap(), expected),

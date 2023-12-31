@@ -292,7 +292,8 @@ fn test_fn_literal_parsing() {
         Statement::Expression(
             Expression::Function(
                 parameters,
-                body
+                body,
+                _
             )
         ) if parameters.len() == 2 &&
             parameters[0].to_string() == "x" &&
@@ -322,6 +323,7 @@ fn test_fn_parameter_parsing() {
             Statement::Expression(
                 Expression::Function(
                     parameters,
+                    _,
                     _
                 )
             ) if parameters.len() == args.len() &&
@@ -545,5 +547,24 @@ fn test_hash_literal_expressions() {
             pairs.iter().zip(tests.iter()).all(|((k, v), (key, value))| matches!(k,
                 Expression::String(s) if s == *key
             ) && v == value)
+    ));
+}
+
+#[test]
+fn test_function_literal_with_name() {
+    let input = String::from("let myFunction = fn() { };");
+
+    let program = setup_test(input, Some(1));
+
+    let stmt = &program.statements[0];
+    assert!(matches!(stmt,
+        Statement::Let(
+            _,
+            Expression::Function(
+                _,
+                _,
+                Some(name)
+            )
+        ) if name == "myFunction"
     ));
 }

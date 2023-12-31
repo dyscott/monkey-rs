@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub fn run_file(path: String, compiled: bool) -> Result<()> {
+pub fn run_file(path: String, eval: bool) -> Result<()> {
     // Open the file
     let path = Path::new(&path);
     let mut file = File::open(path)?;
@@ -30,34 +30,35 @@ pub fn run_file(path: String, compiled: bool) -> Result<()> {
         return Ok(());
     }
 
-    if compiled {
-        // Compile the file
-        let mut compiler = Compiler::new();
-        let result = compiler.compile(&program);
-        if let Err(error) = result {
-            println!("Error occurred during compilation:");
-            println!("\tError: {}", error);
-            return Ok(());
+    if eval {
+        // Use the evaluator instead of the compiler
+        let mut evaluator = Evaluator::default();
+        let evaluated = evaluator.eval(&program);
+        if let Err(error) = evaluated {
+            println!("Error occurred during evaluation:");
+            println!("\tError: {}", error)
         }
-        let bytecode = compiler.bytecode();
 
-        // Run the file
-        let mut vm = VM::new(bytecode);
-        let result = vm.run();
-        if let Err(error) = result {
-            println!("Error occurred during execution:");
-            println!("\tError: {}", error);
-            return Ok(());
-        }
         return Ok(());
     }
 
-    // Fall back to interpreted mode
-    let mut evaluator = Evaluator::default();
-    let evaluated = evaluator.eval(&program);
-    if let Err(error) = evaluated {
-        println!("Error occurred during evaluation:");
-        println!("\tError: {}", error)
+    // Compile the file
+    let mut compiler = Compiler::new();
+    let result = compiler.compile(&program);
+    if let Err(error) = result {
+        println!("Error occurred during compilation:");
+        println!("\tError: {}", error);
+        return Ok(());
+    }
+    let bytecode = compiler.bytecode();
+
+    // Run the file
+    let mut vm = VM::new(bytecode);
+    let result = vm.run();
+    if let Err(error) = result {
+        println!("Error occurred during execution:");
+        println!("\tError: {}", error);
+        return Ok(());
     }
 
     Ok(())

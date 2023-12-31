@@ -23,6 +23,12 @@ pub struct CompiledFunction {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Closure {
+    pub func: CompiledFunction,
+    pub free: Vec<Object>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     Integer(i64),
     Boolean(bool),
@@ -33,6 +39,7 @@ pub enum Object {
     Function(Vec<String>, Box<Statement>, Rc<RefCell<Environment>>),
     BuiltInFunction(BuiltInFunction),
     CompiledFunction(CompiledFunction),
+    Closure(Closure),
     Null,
 }
 
@@ -78,6 +85,9 @@ impl Display for Object {
             Object::CompiledFunction(func) => {
                 write!(f, "CompiledFunction[{:p}]", &func)
             }
+            Object::Closure(closure) => {
+                write!(f, "Closure[{:p}]", &closure)
+            }
             Object::Null => {
                 write!(f, "null")
             }
@@ -106,6 +116,7 @@ impl Object {
             Object::Function(_, _, _) => "FUNCTION",
             Object::BuiltInFunction(_) => "BUILTIN",
             Object::CompiledFunction(_) => "COMPILED_FUNCTION",
+            Object::Closure(_) => "CLOSURE",
             Object::Null => "NULL",
         }
         .to_string()

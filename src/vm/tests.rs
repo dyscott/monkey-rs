@@ -439,6 +439,154 @@ fn test_builtin_functions() {
     run_vm_tests(tests);
 }
 
+#[test]
+fn test_closures() {
+    let tests = vec![
+        make_test_int!(r#"
+            let newClosure = fn(a) {
+                fn() { a; };
+            };
+            let closure = newClosure(99);
+            closure();
+            "#,
+            99
+        ),
+        make_test_int!(r#"
+            let newAdder = fn(a, b) {
+                fn(c) { a + b + c };
+            };
+            let adder = newAdder(1, 2);
+            adder(8);
+            "#,
+            11
+        ),
+        make_test_int!(r#"
+            let newAdder = fn(a, b) {
+                let c = a + b;
+                fn(d) { c + d };
+            };
+            let adder = newAdder(1, 2);
+            adder(8);
+            "#,
+            11
+        ),
+        make_test_int!(r#"
+            let newAdderOuter = fn(a, b) {
+                let c = a + b;
+                fn(d) {
+                    let e = d + c;
+                    fn(f) { e + f; };
+                };
+            };
+            let newAdderInner = newAdderOuter(1, 2)
+            let adder = newAdderInner(3);
+            adder(8);
+            "#,
+            14
+        ),
+        make_test_int!(r#"
+            let a = 1;
+            let newAdderOuter = fn(b) {
+                fn(c) {
+                    fn(d) { a + b + c + d };
+                };
+            };
+            let newAdderInner = newAdderOuter(2)
+            let adder = newAdderInner(3);
+            adder(8);
+            "#,
+            14
+        ),
+        make_test_int!(r#"
+            let newClosure = fn(a, b) {
+                let one = fn() { a; };
+                let two = fn() { b; };
+                fn() { one() + two(); };
+            };
+            let closure = newClosure(9, 90);
+            closure();            
+            "#,
+            99
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_recursive_functions() {
+    let tests = vec![
+        make_test_int!(r#"
+            let countDown = fn(x) {
+                if (x == 0) {
+                    return 0;
+                } else {
+                    countDown(x - 1);
+                }
+            };
+            countDown(1);
+            "#,
+            0
+        ),
+        make_test_int!(r#"
+            let countDown = fn(x) {
+                if (x == 0) {
+                    return 0;
+                } else {
+                    countDown(x - 1);
+                }
+            };
+            let wrapper = fn() {
+                countDown(1);
+            };
+            wrapper();
+            "#,
+            0
+        ),
+        make_test_int!(r#"
+            let wrapper = fn() {
+                let countDown = fn(x) {
+                    if (x == 0) {
+                        return 0;
+                    } else {
+                        countDown(x - 1);
+                    }
+                };
+                countDown(1);
+            };
+            wrapper();
+            "#,
+            0
+        ),
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_recursive_fibonacci() {
+    let tests = vec![
+        make_test_int!(r#"
+            let fibonacci = fn(x) {
+                if (x == 0) {
+                    return 0;
+                } else {
+                    if (x == 1) {
+                        return 1;
+                    } else {
+                        fibonacci(x - 1) + fibonacci(x - 2);
+                    }
+                }
+            };
+            fibonacci(15);
+            "#,
+            610
+        )
+    ];
+
+    run_vm_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

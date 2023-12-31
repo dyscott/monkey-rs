@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use crate::{
     code::{read_u16, Opcode},
     compiler::Bytecode,
-    object::{CompiledFunction, HashKey, Object, builtins::{get_builtin, BUILTINS}},
+    object::{
+        builtins::{get_builtin, BUILTINS},
+        BuiltInFunction, Closure, CompiledFunction, HashKey, Object,
+    },
 };
 use anyhow::{anyhow, Result};
 use frame::Frame;
@@ -53,7 +56,11 @@ impl VM {
             num_locals: 0,
             num_parameters: 0,
         };
-        let main_frame = Frame::new(main_fn, 0);
+        let main_closure = Closure {
+            func: main_fn,
+            free: vec![],
+        };
+        let main_frame = Frame::new(main_closure, 0);
         let mut frames = Vec::with_capacity(MAX_FRAMES);
         frames.push(main_frame);
 
@@ -75,7 +82,11 @@ impl VM {
             num_locals: 0,
             num_parameters: 0,
         };
-        let main_frame = Frame::new(main_fn, 0);
+        let main_closure = Closure {
+            func: main_fn,
+            free: vec![],
+        };
+        let main_frame = Frame::new(main_closure, 0);
 
         self.frames = vec![main_frame];
         self.frames_index = 1;
@@ -270,7 +281,24 @@ impl VM {
                         .ok_or(anyhow!("builtin not found: {}", builtin_index))?;
                     self.push(Object::BuiltInFunction(builtin))?;
                 }
-                _ => unimplemented!("opcode not implemented: {}", op),
+                Opcode::OpClosure => {
+                    let const_index = read_u16(&ins[ip + 1..ip + 3]) as usize;
+                    let num_free = ins[ip + 3] as usize;
+                    ip += 3;
+
+                    self.push_closure(const_index, num_free)?;
+                }
+                Opcode::OpGetFree => {
+                    let free_index = ins[ip + 1] as usize;
+                    ip += 1;
+
+                    let current_closure = self.current_frame().cl.clone();
+                    self.push(current_closure.free[free_index].clone())?;
+                }
+                Opcode::OpCurrentClosure => {
+                    let current_closure = self.current_frame().cl.clone();
+                    self.push(Object::Closure(current_closure))?;
+                }
             }
             self.current_frame().ip = ip + 1;
         }
@@ -561,32 +589,59 @@ impl VM {
     fn exec_call(&mut self, num_args: usize) -> Result<()> {
         let callee = self.stack[self.sp - 1 - num_args].clone();
         match callee {
-            Object::CompiledFunction(compiled_fn) => {
-                let num_locals = compiled_fn.num_locals;
-                let num_params = compiled_fn.num_parameters;
-
-                if num_args != num_params {
-                    return Err(anyhow!(
-                        "wrong number of arguments: want={}, got={}",
-                        num_params,
-                        num_args
-                    ));
-                }
-
-                let frame = Frame::new(compiled_fn, self.sp - num_args);
-                self.sp = frame.base_pointer + num_locals;
-                self.push_frame(frame)?;
-            }
-            Object::BuiltInFunction(builtin_fn) => {
-                let args  = self.stack[self.sp - num_args..self.sp].to_vec();
-                self.current_frame().ip += 1;
-
-                let result = builtin_fn(args)?;
-                self.sp = self.sp - num_args - 1;
-                self.push(result)?;
-            }
-            _ => return Err(anyhow!("calling non-function")),
+            Object::Closure(cl) => self.call_closure(cl, num_args),
+            Object::BuiltInFunction(builtin_fn) => self.call_builtin(builtin_fn, num_args),
+            _ => Err(anyhow!("calling non-closure and non-builtin")),
         }
+    }
+
+    // Push a closure onto the stack
+    fn push_closure(&mut self, const_index: usize, num_free: usize) -> Result<()> {
+        let constant = self.constants[const_index].clone();
+
+        if let Object::CompiledFunction(func) = constant {
+            let mut free = vec![];
+            for i in 0..num_free {
+                free.push(self.stack[self.sp - num_free + i].clone());
+            }
+            self.sp -= num_free;
+
+            let cl = Closure { func, free };
+            self.push(Object::Closure(cl))?;
+
+            return Ok(());
+        }
+
+        return Err(anyhow!("not a function: {:?}", constant));
+    }
+
+    // Call a closure
+    fn call_closure(&mut self, cl: Closure, num_args: usize) -> Result<()> {
+        let num_locals = cl.func.num_locals;
+        let num_params = cl.func.num_parameters;
+
+        if num_args != num_params {
+            return Err(anyhow!(
+                "wrong number of arguments: want={}, got={}",
+                num_params,
+                num_args
+            ));
+        }
+
+        let frame = Frame::new(cl, self.sp - num_args);
+        self.sp = frame.base_pointer + num_locals;
+        self.push_frame(frame)?;
+        Ok(())
+    }
+
+    // Call a built-in function
+    fn call_builtin(&mut self, builtin: BuiltInFunction, num_args: usize) -> Result<()> {
+        let args = self.stack[self.sp - num_args..self.sp].to_vec();
+        self.current_frame().ip += 1;
+
+        let result = builtin(args)?;
+        self.sp = self.sp - num_args - 1;
+        self.push(result)?;
         Ok(())
     }
 }

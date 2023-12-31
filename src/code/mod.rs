@@ -39,6 +39,9 @@ pub enum Opcode {
     OpGetLocal,
     OpSetLocal,
     OpGetBuiltin,
+    OpClosure,
+    OpGetFree,
+    OpCurrentClosure,
 }
 
 pub struct Definition {
@@ -161,6 +164,18 @@ impl Opcode {
                 name: "OpGetBuiltin",
                 operand_widths: vec![1]
             },
+            Opcode::OpClosure => Definition {
+                name: "OpClosure",
+                operand_widths: vec![2, 1]
+            },
+            Opcode::OpGetFree => Definition {
+                name: "OpGetFree",
+                operand_widths: vec![1]
+            },
+            Opcode::OpCurrentClosure => Definition {
+                name: "OpCurrentClosure",
+                operand_widths: vec![]
+            }
         }
     }
 }
@@ -175,7 +190,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpGetBuiltin as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpCurrentClosure as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {
@@ -252,6 +267,9 @@ pub fn format_instruction(def: &Definition, operands: Vec<u64>) -> String {
         }
         1 => {
             return format!("{} {}", def.name, operands[0]);
+        }
+        2 => {
+            return format!("{} {} {}", def.name, operands[0], operands[1]);
         }
         _ => {
             return format!("ERROR: unhandled operand_count for {}\n", def.name);

@@ -119,6 +119,14 @@ impl Parser {
         // Parse the expression
         let value = self.parse_expression(Precedence::Lowest)?;
 
+        // Parse function name
+        let value = match value {
+            Expression::Function(parameters, body, _) => {
+                Expression::Function(parameters, body, Some(name.clone()))
+            }
+            _ => value,
+        };
+
         // Semi-colon is optional
         if self.peek_token == token!(;) {
             self.next_token();
@@ -388,7 +396,7 @@ impl Parser {
         self.next_token();
         let body = self.parse_block_statement()?;
 
-        return Ok(Expression::Function(parameters, Box::new(body)));
+        return Ok(Expression::Function(parameters, Box::new(body), None));
     }
 
     // Parse the parameters of a function

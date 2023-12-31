@@ -5,13 +5,13 @@ use std::rc::Rc;
 
 use crate::code::{make, Instructions, Opcode};
 use crate::lexer::token::Token;
-use crate::object::{CompiledFunction, Object, builtins::BUILTINS};
+use crate::object::{builtins::BUILTINS, CompiledFunction, Object};
 use crate::parser::ast::{Expression, Node, Program, Statement};
 use crate::token;
 use anyhow::{anyhow, Result};
 use symbol_table::SymbolTable;
 
-use self::symbol_table::{GLOBAL_SCOPE, LOCAL_SCOPE, BUILTIN_SCOPE};
+use self::symbol_table::{BUILTIN_SCOPE, FREE_SCOPE, GLOBAL_SCOPE, LOCAL_SCOPE, FUNCTION_SCOPE};
 
 #[cfg(test)]
 mod tests;
@@ -148,8 +148,8 @@ impl Compiler {
                 }
             }
             Statement::Let(name, expression) => {
-                self.compile_node(&Node::Expression(expression))?;
                 let symbol = self.symbol_table.borrow_mut().define(name);
+                self.compile_node(&Node::Expression(expression))?;
                 match symbol.scope {
                     GLOBAL_SCOPE => emit!(self, Opcode::OpSetGlobal, [symbol.index as u64]),
                     LOCAL_SCOPE => emit!(self, Opcode::OpSetLocal, [symbol.index as u64]),
@@ -262,15 +262,10 @@ impl Compiler {
             Expression::Identifier(name) => {
                 let symbol = self
                     .symbol_table
-                    .borrow()
+                    .borrow_mut()
                     .resolve(name)
                     .ok_or_else(|| anyhow!("undefined variable: {}", name))?;
-                match symbol.scope {
-                    GLOBAL_SCOPE => emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]),
-                    LOCAL_SCOPE => emit!(self, Opcode::OpGetLocal, [symbol.index as u64]),
-                    BUILTIN_SCOPE => emit!(self, Opcode::OpGetBuiltin, [symbol.index as u64]),
-                    _ => Err(anyhow!("unknown scope: {}", symbol.scope))?,
-                };
+                self.load_symbol(symbol);
             }
             Expression::Index(left, index) => {
                 self.compile_node(&Node::Expression(left))?;
@@ -293,8 +288,12 @@ impl Compiler {
                 };
                 emit!(self, Opcode::OpSliceIndex);
             }
-            Expression::Function(params, body) => {
+            Expression::Function(params, body, name) => {
                 self.enter_scope();
+
+                if let Some(name) = name {
+                    self.symbol_table.borrow_mut().define_function_name(name);
+                }
 
                 for param in params {
                     self.symbol_table.borrow_mut().define(param);
@@ -309,9 +308,15 @@ impl Compiler {
                     emit!(self, Opcode::OpReturn);
                 }
 
+                let free_symbols = self.symbol_table.borrow().free_symbols.clone();
                 let num_locals = self.symbol_table.borrow().num_definitions;
                 let num_parameters = params.len();
                 let instructions = self.leave_scope();
+
+                let free_symbol_count = free_symbols.len();
+                for free in free_symbols {
+                    self.load_symbol(free);
+                }
 
                 let compiled_fn = Object::CompiledFunction(CompiledFunction {
                     instructions,
@@ -319,7 +324,11 @@ impl Compiler {
                     num_parameters,
                 });
                 let constant = self.add_constant(compiled_fn);
-                emit!(self, Opcode::OpConstant, [constant as u64]);
+                emit!(
+                    self,
+                    Opcode::OpClosure,
+                    [constant as u64, free_symbol_count as u64]
+                );
             }
             Expression::Call(function, args) => {
                 self.compile_node(&Node::Expression(function))?;
@@ -423,6 +432,18 @@ impl Compiler {
         let op = Opcode::try_from(self.current_instructions()[position]).unwrap();
         let new_instruction = make(op, vec![operand]);
         self.replace_instruction(position, new_instruction);
+    }
+
+    // Load a symbol
+    fn load_symbol(&mut self, symbol: symbol_table::Symbol) {
+        match symbol.scope {
+            GLOBAL_SCOPE => emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]),
+            LOCAL_SCOPE => emit!(self, Opcode::OpGetLocal, [symbol.index as u64]),
+            BUILTIN_SCOPE => emit!(self, Opcode::OpGetBuiltin, [symbol.index as u64]),
+            FREE_SCOPE => emit!(self, Opcode::OpGetFree, [symbol.index as u64]),
+            FUNCTION_SCOPE => emit!(self, Opcode::OpCurrentClosure),
+            _ => Err(anyhow!("unknown scope: {}", symbol.scope)).unwrap(),
+        };
     }
 
     // Get the compiled bytecode

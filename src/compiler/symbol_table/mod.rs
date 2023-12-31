@@ -9,6 +9,8 @@ type OuterSymbolTable = Rc<RefCell<SymbolTable>>;
 pub const GLOBAL_SCOPE: SymbolScope = "GLOBAL";
 pub const LOCAL_SCOPE: SymbolScope = "LOCAL";
 pub const BUILTIN_SCOPE: SymbolScope = "BUILTIN";
+pub const FREE_SCOPE: SymbolScope = "FREE";
+pub const FUNCTION_SCOPE: SymbolScope = "FUNCTION";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Symbol {
@@ -22,6 +24,7 @@ pub struct SymbolTable {
     pub outer: Option<Rc<RefCell<SymbolTable>>>,
     pub store: HashMap<String, Symbol>,
     pub num_definitions: usize,
+    pub free_symbols: Vec<Symbol>,
 }
 
 impl SymbolTable {
@@ -31,6 +34,7 @@ impl SymbolTable {
             outer,
             store,
             num_definitions: 0,
+            free_symbols: vec![],
         }))
     }
 
@@ -58,13 +62,48 @@ impl SymbolTable {
         return symbol;
     }
 
-    pub fn resolve(&self, name: &str) -> Option<Symbol> {
-        match self.store.get(name) {
-            Some(symbol) => Some(symbol.clone()),
-            None => match &self.outer {
-                Some(outer) => outer.borrow().resolve(name),
-                None => None,
-            },
+    pub fn define_free(&mut self, original: &Symbol) -> Symbol {
+        self.free_symbols.push(original.clone());
+        let symbol = Symbol {
+            name: original.name.clone(),
+            scope: FREE_SCOPE,
+            index: self.free_symbols.len() - 1,
+        };
+        self.store.insert(original.name.clone(), symbol.clone());
+        return symbol;
+    }
+
+    pub fn define_function_name(&mut self, name: &str) -> Symbol {
+        let symbol = Symbol {
+            name: name.to_string(),
+            scope: FUNCTION_SCOPE,
+            index: 0,
+        };
+        self.store.insert(name.to_string(), symbol.clone());
+        return symbol;
+    }
+
+    pub fn resolve(&mut self, name: &str) -> Option<Symbol> {
+        let sym = self.store.get(name);
+
+        if let Some(sym) = sym {
+            return Some(sym.clone());
         }
+
+        let sym = match &self.outer {
+            Some(outer) => match outer.borrow_mut().resolve(name) {
+                Some(sym) => sym,
+                None => return None,
+            },
+            None => return None,
+        };
+
+        if sym.scope == GLOBAL_SCOPE || sym.scope == BUILTIN_SCOPE {
+            return Some(sym);
+        }
+
+        let free = self.define_free(&sym);
+
+        return Some(free);
     }
 }

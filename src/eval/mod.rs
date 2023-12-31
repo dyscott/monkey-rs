@@ -107,7 +107,7 @@ impl Evaluator {
                 self.eval_if_expression(condition, consequence, alternative)
             }
             Expression::Identifier(name) => self.eval_identifier_expression(name),
-            Expression::Function(params, body) => Ok(Object::Function(
+            Expression::Function(params, body, _) => Ok(Object::Function(
                 params.clone(),
                 body.clone(),
                 self.env.clone(),

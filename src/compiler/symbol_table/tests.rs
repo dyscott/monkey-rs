@@ -80,7 +80,7 @@ fn test_resolve_global() {
     ];
 
     for sym in expected {
-        let result = global.borrow().resolve(&sym.name);
+        let result = global.borrow_mut().resolve(&sym.name);
         assert_eq!(result, Some(sym));
     }
 }
@@ -119,7 +119,7 @@ fn test_resolve_local() {
     ];
 
     for sym in expected {
-        let result = local.borrow().resolve(&sym.name);
+        let result = local.borrow_mut().resolve(&sym.name);
         assert_eq!(result, Some(sym));
     }
 }
@@ -185,12 +185,12 @@ fn test_resolve_nested_local() {
     ];
 
     for sym in expected1 {
-        let result = local.borrow().resolve(&sym.name);
+        let result = local.borrow_mut().resolve(&sym.name);
         assert_eq!(result, Some(sym));
     }
 
     for sym in expected2 {
-        let result = local2.borrow().resolve(&sym.name);
+        let result = local2.borrow_mut().resolve(&sym.name);
         assert_eq!(result, Some(sym));
     }
 }
@@ -198,8 +198,8 @@ fn test_resolve_nested_local() {
 #[test]
 fn test_define_resolve_builtins() {
     let global = SymbolTable::new(None);
-    let first_local = SymbolTable::new(Some(global.clone()));
-    let second_local = SymbolTable::new(Some(first_local.clone()));
+    let local1 = SymbolTable::new(Some(global.clone()));
+    let local2 = SymbolTable::new(Some(local1.clone()));
 
     let expected = vec![
         Symbol {
@@ -228,10 +228,214 @@ fn test_define_resolve_builtins() {
         global.borrow_mut().define_builtin(i, &sym.name);
     }
 
-    for table in vec![global, first_local, second_local] {
+    for table in vec![global, local1, local2] {
         for sym in expected.iter() {
-            let result = table.borrow().resolve(&sym.name);
+            let result = table.borrow_mut().resolve(&sym.name);
             assert_eq!(result, Some(sym.clone()));
         }
+    }
+}
+
+#[test]
+fn test_resolve_free() {
+    let global = SymbolTable::new(None);
+    global.borrow_mut().define("a");
+    global.borrow_mut().define("b");
+
+    let local1 = SymbolTable::new(Some(global.clone()));
+    local1.borrow_mut().define("c");
+    local1.borrow_mut().define("d");
+
+    let local2 = SymbolTable::new(Some(local1.clone()));
+    local2.borrow_mut().define("e");
+    local2.borrow_mut().define("f");
+
+    struct Test {
+        table: Rc<RefCell<SymbolTable>>,
+        expected_symbols: Vec<Symbol>,
+        expected_free_symbols: Vec<Symbol>,
+    }
+
+    let tests = vec![
+        Test {
+            table: local1.clone(),
+            expected_symbols: vec![
+                Symbol {
+                    name: "a".to_string(),
+                    scope: GLOBAL_SCOPE,
+                    index: 0,
+                },
+                Symbol {
+                    name: "b".to_string(),
+                    scope: GLOBAL_SCOPE,
+                    index: 1,
+                },
+                Symbol {
+                    name: "c".to_string(),
+                    scope: LOCAL_SCOPE,
+                    index: 0,
+                },
+                Symbol {
+                    name: "d".to_string(),
+                    scope: LOCAL_SCOPE,
+                    index: 1,
+                },
+            ],
+            expected_free_symbols: vec![],
+        },
+        Test {
+            table: local2.clone(),
+            expected_symbols: vec![
+                Symbol {
+                    name: "a".to_string(),
+                    scope: GLOBAL_SCOPE,
+                    index: 0,
+                },
+                Symbol {
+                    name: "b".to_string(),
+                    scope: GLOBAL_SCOPE,
+                    index: 1,
+                },
+                Symbol {
+                    name: "c".to_string(),
+                    scope: FREE_SCOPE,
+                    index: 0,
+                },
+                Symbol {
+                    name: "d".to_string(),
+                    scope: FREE_SCOPE,
+                    index: 1,
+                },
+                Symbol {
+                    name: "e".to_string(),
+                    scope: LOCAL_SCOPE,
+                    index: 0,
+                },
+                Symbol {
+                    name: "f".to_string(),
+                    scope: LOCAL_SCOPE,
+                    index: 1,
+                },
+            ],
+            expected_free_symbols: vec![
+                Symbol {
+                    name: "c".to_string(),
+                    scope: LOCAL_SCOPE,
+                    index: 0,
+                },
+                Symbol {
+                    name: "d".to_string(),
+                    scope: LOCAL_SCOPE,
+                    index: 1,
+                },
+            ],
+        },
+    ];
+
+    for test in tests {
+        let table = test.table;
+        let expected_symbols = test.expected_symbols;
+        let expected_free_symbols = test.expected_free_symbols;
+
+        for sym in expected_symbols {
+            let result = table.borrow_mut().resolve(&sym.name);
+            assert_eq!(result, Some(sym));
+        }
+
+        let free_symbols = &table.borrow_mut().free_symbols;
+        assert_eq!(free_symbols.len(), expected_free_symbols.len());
+        for (i, sym) in free_symbols.iter().enumerate() {
+            assert_eq!(sym, &expected_free_symbols[i]);
+        }
+    }
+}
+
+#[test]
+fn test_resolve_unresolvable_free() {
+    let global = SymbolTable::new(None);
+    global.borrow_mut().define("a");
+
+    let local1 = SymbolTable::new(Some(global.clone()));
+    local1.borrow_mut().define("c");
+
+    let local2 = SymbolTable::new(Some(local1.clone()));
+    local2.borrow_mut().define("e");
+    local2.borrow_mut().define("f");
+
+    let expected = vec![
+        Symbol {
+            name: "a".to_string(),
+            scope: GLOBAL_SCOPE,
+            index: 0,
+        },
+        Symbol {
+            name: "c".to_string(),
+            scope: FREE_SCOPE,
+            index: 0,
+        },
+        Symbol {
+            name: "e".to_string(),
+            scope: LOCAL_SCOPE,
+            index: 0,
+        },
+        Symbol {
+            name: "f".to_string(),
+            scope: LOCAL_SCOPE,
+            index: 1,
+        },
+    ];
+
+    for sym in expected {
+        let result = local2.borrow_mut().resolve(&sym.name);
+        assert_eq!(result, Some(sym));
+    }
+
+    let expect_unresolvable = vec![
+        String::from("b"),
+        String::from("d"),
+    ];
+
+    for name in expect_unresolvable {
+        let result = local2.borrow_mut().resolve(&name);
+        assert_eq!(result, None);
+    }
+}
+
+#[test]
+fn test_define_and_resolve_function_name() {
+    let global = SymbolTable::new(None);
+    global.borrow_mut().define_function_name("a");
+
+    let expected = vec![
+        Symbol {
+            name: "a".to_string(),
+            scope: FUNCTION_SCOPE,
+            index: 0,
+        },
+    ];
+    
+    for sym in expected {
+        let result = global.borrow_mut().resolve(&sym.name);
+        assert_eq!(result, Some(sym));
+    }
+}
+
+#[test]
+fn test_shadowing_function_name() {
+    let global = SymbolTable::new(None);
+    global.borrow_mut().define_function_name("a");
+    global.borrow_mut().define("a");
+
+    let expected = vec![
+        Symbol {
+            name: "a".to_string(),
+            scope: GLOBAL_SCOPE,
+            index: 0,
+        },
+    ];
+    
+    for sym in expected {
+        let result = global.borrow_mut().resolve(&sym.name);
+        assert_eq!(result, Some(sym));
     }
 }

@@ -22,18 +22,18 @@ struct Args {
     #[arg(short, long)]
     file: Option<String>,
 
-    /// Whether to run in compiled mode
+    /// Whether to run in interpreter mode
     #[arg(short, long, default_value = "false")]
-    compiled: bool,
+    interpreter: bool,
 }
 
 fn main() {
     // Check for file argument
     let args = Args::parse();
     if let Some(file) = args.file {
-        run::run_file(file, args.compiled).unwrap();
+        run::run_file(file, args.interpreter).unwrap();
         return;
     }
 
-    start(&mut std::io::stdin(), args.compiled).unwrap();
+    start(&mut std::io::stdin(), args.interpreter).unwrap();
 }

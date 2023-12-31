@@ -12,6 +12,7 @@ mod run;
 mod code;
 mod compiler;
 mod vm;
+mod benchmark;
 
 use crate::repl::start;
 
@@ -25,12 +26,20 @@ struct Args {
     /// Whether to run in interpreter mode
     #[arg(short, long, default_value = "false")]
     interpreter: bool,
+
+    /// Whether to run benchmark
+    #[arg(short, long, default_value = "false", requires = "file", conflicts_with = "interpreter")]
+    benchmark: bool,
 }
 
 fn main() {
     // Check for file argument
     let args = Args::parse();
     if let Some(file) = args.file {
+        if args.benchmark {
+            benchmark::benchmark_file(file).unwrap();
+            return;
+        }
         run::run_file(file, args.interpreter).unwrap();
         return;
     }

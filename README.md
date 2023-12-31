@@ -27,7 +27,7 @@ $ cargo run --release -- --file=examples/fibonacci.monkey
 ### Benchmarking
 Compare the performance of the interpreter and compiler modes
 ```bash
-$ cargo run --release -- --benchmark --file=examples/fibonacci-benchmark.monkey
+$ cargo run --release -- --benchmark --file=examples/fibonacci_benchmark.monkey
 Parsing took: 18.791µs
 Evaluation (interpreter) took: 42.488771428s
 Compilation took: 7.754µs

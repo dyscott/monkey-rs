@@ -5,13 +5,13 @@ use std::rc::Rc;
 
 use crate::code::{make, Instructions, Opcode};
 use crate::lexer::token::Token;
-use crate::object::{CompiledFunction, Object};
+use crate::object::{CompiledFunction, Object, builtins::BUILTINS};
 use crate::parser::ast::{Expression, Node, Program, Statement};
 use crate::token;
 use anyhow::{anyhow, Result};
 use symbol_table::SymbolTable;
 
-use self::symbol_table::{GLOBAL_SCOPE, LOCAL_SCOPE};
+use self::symbol_table::{GLOBAL_SCOPE, LOCAL_SCOPE, BUILTIN_SCOPE};
 
 #[cfg(test)]
 mod tests;
@@ -55,6 +55,12 @@ struct CompilationScope {
 impl Compiler {
     // Create a new compiler
     pub fn new() -> Self {
+        let symbol_table = SymbolTable::new(None);
+
+        for (i, builtin) in BUILTINS.iter().enumerate() {
+            symbol_table.borrow_mut().define_builtin(i, builtin);
+        }
+
         let main_scope = CompilationScope {
             instructions: vec![],
             last_instruction: None,
@@ -62,7 +68,7 @@ impl Compiler {
         };
         Self {
             constants: vec![],
-            symbol_table: SymbolTable::new(None),
+            symbol_table: symbol_table.clone(),
             scopes: vec![main_scope],
             scope_index: 0,
         }
@@ -259,11 +265,12 @@ impl Compiler {
                     .borrow()
                     .resolve(name)
                     .ok_or_else(|| anyhow!("undefined variable: {}", name))?;
-                if symbol.scope == GLOBAL_SCOPE {
-                    emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]);
-                } else {
-                    emit!(self, Opcode::OpGetLocal, [symbol.index as u64]);
-                }
+                match symbol.scope {
+                    GLOBAL_SCOPE => emit!(self, Opcode::OpGetGlobal, [symbol.index as u64]),
+                    LOCAL_SCOPE => emit!(self, Opcode::OpGetLocal, [symbol.index as u64]),
+                    BUILTIN_SCOPE => emit!(self, Opcode::OpGetBuiltin, [symbol.index as u64]),
+                    _ => Err(anyhow!("unknown scope: {}", symbol.scope))?,
+                };
             }
             Expression::Index(left, index) => {
                 self.compile_node(&Node::Expression(left))?;

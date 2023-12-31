@@ -1,8 +1,6 @@
-mod builtins;
-
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::object::{environment::Environment, HashKey, Object};
+use crate::object::{environment::Environment, HashKey, Object, builtins};
 use crate::token;
 use crate::{
     lexer::token::Token,

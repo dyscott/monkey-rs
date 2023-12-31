@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     code::{read_u16, Opcode},
     compiler::Bytecode,
-    object::{CompiledFunction, HashKey, Object},
+    object::{CompiledFunction, HashKey, Object, builtins::{get_builtin, BUILTINS}},
 };
 use anyhow::{anyhow, Result};
 use frame::Frame;
@@ -226,7 +226,7 @@ impl VM {
                     let num_args = ins[ip + 1] as usize;
                     self.current_frame().ip += 1;
 
-                    self.call_function(num_args)?;
+                    self.exec_call(num_args)?;
 
                     continue;
                 }
@@ -261,6 +261,14 @@ impl VM {
                     let frame_base_pointer = self.current_frame().base_pointer;
 
                     self.push(self.stack[frame_base_pointer + local_index].clone())?;
+                }
+                Opcode::OpGetBuiltin => {
+                    let builtin_index = ins[ip + 1] as usize;
+                    ip += 1;
+
+                    let builtin = get_builtin(&BUILTINS[builtin_index].to_string())
+                        .ok_or(anyhow!("builtin not found: {}", builtin_index))?;
+                    self.push(Object::BuiltInFunction(builtin))?;
                 }
                 _ => unimplemented!("opcode not implemented: {}", op),
             }
@@ -549,26 +557,36 @@ impl VM {
         Ok(())
     }
 
-    // Call a function
-    fn call_function(&mut self, num_args: usize) -> Result<()> {
-        if let Object::CompiledFunction(compiled_fn) = self.stack[self.sp - 1 - num_args].clone() {
-            let num_locals = compiled_fn.num_locals;
-            let num_params = compiled_fn.num_parameters;
+    // Execute a function call
+    fn exec_call(&mut self, num_args: usize) -> Result<()> {
+        let callee = self.stack[self.sp - 1 - num_args].clone();
+        match callee {
+            Object::CompiledFunction(compiled_fn) => {
+                let num_locals = compiled_fn.num_locals;
+                let num_params = compiled_fn.num_parameters;
 
-            if num_args != num_params {
-                return Err(anyhow!(
-                    "wrong number of arguments: want={}, got={}",
-                    num_params,
-                    num_args
-                ));
+                if num_args != num_params {
+                    return Err(anyhow!(
+                        "wrong number of arguments: want={}, got={}",
+                        num_params,
+                        num_args
+                    ));
+                }
+
+                let frame = Frame::new(compiled_fn, self.sp - num_args);
+                self.sp = frame.base_pointer + num_locals;
+                self.push_frame(frame)?;
             }
+            Object::BuiltInFunction(builtin_fn) => {
+                let args  = self.stack[self.sp - num_args..self.sp].to_vec();
+                self.current_frame().ip += 1;
 
-            let frame = Frame::new(compiled_fn, self.sp - num_args);
-            self.sp = frame.base_pointer + num_locals;
-            self.push_frame(frame)?;
-            return Ok(())
-        } else {
-            return Err(anyhow!("calling non-function"));
+                let result = builtin_fn(args)?;
+                self.sp = self.sp - num_args - 1;
+                self.push(result)?;
+            }
+            _ => return Err(anyhow!("calling non-function")),
         }
+        Ok(())
     }
 }

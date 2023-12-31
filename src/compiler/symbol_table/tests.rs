@@ -194,3 +194,44 @@ fn test_resolve_nested_local() {
         assert_eq!(result, Some(sym));
     }
 }
+
+#[test]
+fn test_define_resolve_builtins() {
+    let global = SymbolTable::new(None);
+    let first_local = SymbolTable::new(Some(global.clone()));
+    let second_local = SymbolTable::new(Some(first_local.clone()));
+
+    let expected = vec![
+        Symbol {
+            name: "a".to_string(),
+            scope: BUILTIN_SCOPE,
+            index: 0,
+        },
+        Symbol {
+            name: "c".to_string(),
+            scope: BUILTIN_SCOPE,
+            index: 1,
+        },
+        Symbol {
+            name: "e".to_string(),
+            scope: BUILTIN_SCOPE,
+            index: 2,
+        },
+        Symbol {
+            name: "f".to_string(),
+            scope: BUILTIN_SCOPE,
+            index: 3,
+        },
+    ];
+
+    for (i, sym) in expected.iter().enumerate() {
+        global.borrow_mut().define_builtin(i, &sym.name);
+    }
+
+    for table in vec![global, first_local, second_local] {
+        for sym in expected.iter() {
+            let result = table.borrow().resolve(&sym.name);
+            assert_eq!(result, Some(sym.clone()));
+        }
+    }
+}

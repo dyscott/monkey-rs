@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::code::instructions_string;
 use crate::compiler::Compiler;
 use crate::lexer::Lexer;
 use crate::object::HashKey;
@@ -12,7 +13,7 @@ macro_rules! make_test_int {
     ($input:expr, $expected:expr) => {
         VMTestCase {
             input: String::from($input),
-            expected: Object::Integer($expected),
+            expected: Ok(Object::Integer($expected)),
         }
     };
 }
@@ -21,23 +22,32 @@ macro_rules! make_test_bool {
     ($input:expr, $expected:expr) => {
         VMTestCase {
             input: String::from($input),
-            expected: Object::Boolean($expected),
+            expected: Ok(Object::Boolean($expected)),
         }
     };
 }
 
-macro_rules! make_test {
+macro_rules! make_test_ok {
     ($input:expr, $expected:expr) => {
         VMTestCase {
             input: String::from($input),
-            expected: $expected,
+            expected: Ok($expected),
+        }
+    };
+}
+
+macro_rules! make_test_err {
+    ($input:expr, $expected:expr) => {
+        VMTestCase {
+            input: String::from($input),
+            expected: Err(anyhow!($expected)),
         }
     };
 }
 
 struct VMTestCase {
     input: String,
-    expected: Object,
+    expected: Result<Object>,
 }
 
 #[test]
@@ -108,8 +118,8 @@ fn test_conditionals() {
         make_test_int!("if (1 < 2) { 10 }", 10),
         make_test_int!("if (1 < 2) { 10 } else { 20 }", 10),
         make_test_int!("if (1 > 2) { 10 } else { 20 }", 20),
-        make_test!("if (1 > 2) { 10 }", Object::Null),
-        make_test!("if (false) { 10 }", Object::Null),
+        make_test_ok!("if (1 > 2) { 10 }", Object::Null),
+        make_test_ok!("if (false) { 10 }", Object::Null),
         make_test_int!("if ((if (false) { 10 })) { 10 } else { 20 }", 20),
     ];
 
@@ -130,9 +140,9 @@ fn test_global_let_statements() {
 #[test]
 fn test_string_expressions() {
     let tests = vec![
-        make_test!("\"monkey\"", Object::String(String::from("monkey"))),
-        make_test!("\"mon\" + \"key\"", Object::String(String::from("monkey"))),
-        make_test!(
+        make_test_ok!("\"monkey\"", Object::String(String::from("monkey"))),
+        make_test_ok!("\"mon\" + \"key\"", Object::String(String::from("monkey"))),
+        make_test_ok!(
             "\"mon\" + \"key\" + \"banana\"",
             Object::String(String::from("monkeybanana"))
         ),
@@ -144,8 +154,8 @@ fn test_string_expressions() {
 #[test]
 fn test_array_literals() {
     let tests = vec![
-        make_test!("[]", Object::Array(vec![])),
-        make_test!(
+        make_test_ok!("[]", Object::Array(vec![])),
+        make_test_ok!(
             "[1, 2, 3]",
             Object::Array(vec![
                 Object::Integer(1),
@@ -153,7 +163,7 @@ fn test_array_literals() {
                 Object::Integer(3),
             ])
         ),
-        make_test!(
+        make_test_ok!(
             "[1 + 2, 3 * 4, 5 + 6]",
             Object::Array(vec![
                 Object::Integer(3),
@@ -169,15 +179,15 @@ fn test_array_literals() {
 #[test]
 fn test_hash_literals() {
     let tests = vec![
-        make_test!("{}", Object::Hash(HashMap::new())),
-        make_test!(
+        make_test_ok!("{}", Object::Hash(HashMap::new())),
+        make_test_ok!(
             "{1: 2, 2: 3}",
             Object::Hash(HashMap::from([
                 (HashKey::Integer(1), Object::Integer(2)),
                 (HashKey::Integer(2), Object::Integer(3)),
             ]))
         ),
-        make_test!(
+        make_test_ok!(
             "{1 + 1: 2 * 2, 3 + 3: 4 * 4}",
             Object::Hash(HashMap::from([
                 (HashKey::Integer(2), Object::Integer(4)),
@@ -195,14 +205,14 @@ fn test_index_expressions() {
         make_test_int!("[1, 2, 3][1]", 2),
         make_test_int!("[1, 2, 3][0 + 2]", 3),
         make_test_int!("[[1, 1, 1]][0][0]", 1),
-        make_test!("[][0]", Object::Null),
-        make_test!("[1, 2, 3][99]", Object::Null),
+        make_test_ok!("[][0]", Object::Null),
+        make_test_ok!("[1, 2, 3][99]", Object::Null),
         make_test_int!("[1][-1]", 1),
         make_test_int!("{1: 1, 2: 2}[1]", 1),
         make_test_int!("{1: 1, 2: 2}[2]", 2),
-        make_test!("{1: 1}[0]", Object::Null),
-        make_test!("{}[0]", Object::Null),
-        make_test!(
+        make_test_ok!("{1: 1}[0]", Object::Null),
+        make_test_ok!("{}[0]", Object::Null),
+        make_test_ok!(
             "[1, 2, 3][:]",
             Object::Array(vec![
                 Object::Integer(1),
@@ -210,43 +220,43 @@ fn test_index_expressions() {
                 Object::Integer(3),
             ])
         ),
-        make_test!(
+        make_test_ok!(
             "[1, 2, 3][1:]",
             Object::Array(vec![Object::Integer(2), Object::Integer(3)])
         ),
-        make_test!("[1, 2, 3][:1]", Object::Array(vec![Object::Integer(1)])),
-        make_test!("[1, 2, 3][-1:]", Object::Array(vec![Object::Integer(3)])),
-        make_test!(
+        make_test_ok!("[1, 2, 3][:1]", Object::Array(vec![Object::Integer(1)])),
+        make_test_ok!("[1, 2, 3][-1:]", Object::Array(vec![Object::Integer(3)])),
+        make_test_ok!(
             "[1, 2, 3][:-1]",
             Object::Array(vec![Object::Integer(1), Object::Integer(2)])
         ),
-        make_test!("[1, 2, 3][1:2]", Object::Array(vec![Object::Integer(2)])),
-        make_test!(
+        make_test_ok!("[1, 2, 3][1:2]", Object::Array(vec![Object::Integer(2)])),
+        make_test_ok!(
             "[1, 2, 3][1:3]",
             Object::Array(vec![Object::Integer(2), Object::Integer(3)])
         ),
-        make_test!(
+        make_test_ok!(
             "[1, 2, 3][1:4]",
             Object::Array(vec![Object::Integer(2), Object::Integer(3)])
         ),
-        make_test!("[1, 2, 3][4:5]", Object::Array(vec![])),
-        make_test!("\"Hello\"[1]", Object::String("e".to_string())),
-        make_test!("\"Hello\"[2]", Object::String("l".to_string())),
-        make_test!("\"Hello\"[0]", Object::String("H".to_string())),
-        make_test!("\"Hello\"[3]", Object::String("l".to_string())),
-        make_test!("\"Hello\"[4]", Object::String("o".to_string())),
-        make_test!("\"Hello\"[5]", Object::Null),
-        make_test!("\"Hello\"[-1]", Object::String("o".to_string())),
-        make_test!("\"Hello\"[1:]", Object::String("ello".to_string())),
-        make_test!("\"Hello\"[:1]", Object::String("H".to_string())),
-        make_test!("\"Hello\"[-1:]", Object::String("o".to_string())),
-        make_test!("\"Hello\"[:-1]", Object::String("Hell".to_string())),
-        make_test!("\"Hello\"[:]", Object::String("Hello".to_string())),
-        make_test!("\"Hello\"[1:2]", Object::String("e".to_string())),
-        make_test!("\"Hello\"[1:3]", Object::String("el".to_string())),
-        make_test!("\"Hello\"[1:4]", Object::String("ell".to_string())),
-        make_test!("\"Hello\"[1:5]", Object::String("ello".to_string())),
-        make_test!("\"Hello\"[1:6]", Object::String("ello".to_string())),
+        make_test_ok!("[1, 2, 3][4:5]", Object::Array(vec![])),
+        make_test_ok!("\"Hello\"[1]", Object::String("e".to_string())),
+        make_test_ok!("\"Hello\"[2]", Object::String("l".to_string())),
+        make_test_ok!("\"Hello\"[0]", Object::String("H".to_string())),
+        make_test_ok!("\"Hello\"[3]", Object::String("l".to_string())),
+        make_test_ok!("\"Hello\"[4]", Object::String("o".to_string())),
+        make_test_ok!("\"Hello\"[5]", Object::Null),
+        make_test_ok!("\"Hello\"[-1]", Object::String("o".to_string())),
+        make_test_ok!("\"Hello\"[1:]", Object::String("ello".to_string())),
+        make_test_ok!("\"Hello\"[:1]", Object::String("H".to_string())),
+        make_test_ok!("\"Hello\"[-1:]", Object::String("o".to_string())),
+        make_test_ok!("\"Hello\"[:-1]", Object::String("Hell".to_string())),
+        make_test_ok!("\"Hello\"[:]", Object::String("Hello".to_string())),
+        make_test_ok!("\"Hello\"[1:2]", Object::String("e".to_string())),
+        make_test_ok!("\"Hello\"[1:3]", Object::String("el".to_string())),
+        make_test_ok!("\"Hello\"[1:4]", Object::String("ell".to_string())),
+        make_test_ok!("\"Hello\"[1:5]", Object::String("ello".to_string())),
+        make_test_ok!("\"Hello\"[1:6]", Object::String("ello".to_string())),
     ];
 
     run_vm_tests(tests);
@@ -285,8 +295,8 @@ fn test_functions_with_return_statement() {
 #[test]
 fn test_functions_without_return_value() {
     let tests = vec![
-        make_test!("let noReturn = fn() { }; noReturn();", Object::Null),
-        make_test!("let noReturn = fn() { }; let noReturnTwo = fn() { noReturn(); }; noReturn(); noReturnTwo();", Object::Null),
+        make_test_ok!("let noReturn = fn() { }; noReturn();", Object::Null),
+        make_test_ok!("let noReturn = fn() { }; let noReturnTwo = fn() { noReturn(); }; noReturn(); noReturnTwo();", Object::Null),
     ];
 
     run_vm_tests(tests);
@@ -395,22 +405,38 @@ fn test_calling_functions_with_arguments_and_bindings() {
 #[test]
 fn test_calling_functions_with_wrong_arguments() {
     let tests = vec![
-        ("fn() { 1; }(1);", "wrong number of arguments: want=0, got=1"),
-        ("fn(a) { a; }();", "wrong number of arguments: want=1, got=0"),
-        ("fn(a, b) { a + b; }(1);", "wrong number of arguments: want=2, got=1"),
+        make_test_err!("fn() { 1; }(1);", "wrong number of arguments: want=0, got=1"),
+        make_test_err!("fn(a) { a; }();", "wrong number of arguments: want=1, got=0"),
+        make_test_err!("fn(a, b) { a + b; }(1);", "wrong number of arguments: want=2, got=1"),
     ];
 
-    for (input, expected) in tests {
-        let program = parse(String::from(input));
-        let mut compiler = Compiler::new();
-        compiler.compile_node(&Node::Program(&program)).unwrap();
-        let bytecode = compiler.bytecode();
+    run_vm_tests(tests);
+}
 
-        let mut vm = VM::new(bytecode);
-        let err = vm.run().unwrap_err();
+#[test]
+fn test_builtin_functions() {
+    let tests = vec![
+        make_test_ok!(r#"len("")"#, Object::Integer(0)),
+        make_test_ok!(r#"len("four")"#, Object::Integer(4)),
+        make_test_ok!(r#"len("hello world")"#, Object::Integer(11)),
+        make_test_err!(r#"len(1)"#, "argument to `len` not supported, got INTEGER"),
+        make_test_err!(r#"len("one", "two")"#, "wrong number of arguments. got=2, want=1"),
+        make_test_ok!(r#"len([1, 2, 3])"#, Object::Integer(3)),
+        make_test_ok!(r#"len([])"#, Object::Integer(0)),
+        make_test_ok!(r#"puts("hello", "world!")"#, Object::Null),
+        make_test_ok!(r#"first([1, 2, 3])"#, Object::Integer(1)),
+        make_test_ok!(r#"first([])"#, Object::Null),
+        make_test_err!(r#"first(1)"#, "argument to `first` must be ARRAY, got INTEGER"),
+        make_test_ok!(r#"last([1, 2, 3])"#, Object::Integer(3)),
+        make_test_ok!(r#"last([])"#, Object::Null),
+        make_test_err!(r#"last(1)"#, "argument to `last` must be ARRAY, got INTEGER"),
+        make_test_ok!(r#"rest([1, 2, 3])"#, Object::Array(vec![Object::Integer(2), Object::Integer(3)])),
+        make_test_ok!(r#"rest([])"#, Object::Null),
+        make_test_ok!(r#"push([], 1)"#, Object::Array(vec![Object::Integer(1)])),
+        make_test_err!(r#"push(1, 1)"#, "argument to `push` must be ARRAY, got INTEGER"),
+    ];
 
-        assert_eq!(err.to_string(), expected);
-    }
+    run_vm_tests(tests);
 }
 
 fn parse(input: String) -> Program {
@@ -427,13 +453,19 @@ fn run_vm_tests(tests: Vec<VMTestCase>) {
         let bytecode = compiler.bytecode();
 
         // Print disassembled bytecode
-        // println!("{}", instructions_string(&bytecode.instructions));
+        println!("{}", instructions_string(&bytecode.instructions));
 
         let mut vm = VM::new(bytecode);
-        vm.run().unwrap();
-
-        let stack_elem = vm.last_popped_stack_elem();
-
-        assert_eq!(test.expected, stack_elem);
+        match test.expected {
+            Ok(expected) => {
+                vm.run().unwrap();
+                let stack_elem = vm.last_popped_stack_elem();
+                assert_eq!(stack_elem, expected);
+            }
+            Err(expected) => {
+                let err = vm.run().unwrap_err();
+                assert_eq!(err.to_string(), expected.to_string());
+            }
+        }
     }
 }

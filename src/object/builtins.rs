@@ -1,6 +1,6 @@
 use super::*;
 use crate::object::BuiltInFunction;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 pub fn get_builtin(name: &String) -> Option<BuiltInFunction> {
     match name.as_str() {
@@ -13,6 +13,8 @@ pub fn get_builtin(name: &String) -> Option<BuiltInFunction> {
         _ => None,
     }
 }
+
+pub static BUILTINS: [&str; 6] = ["len", "puts", "first", "last", "rest", "push"];
 
 fn len(args: Vec<Object>) -> Result<Object> {
     if args.len() != 1 {

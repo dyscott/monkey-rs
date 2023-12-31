@@ -38,6 +38,7 @@ pub enum Opcode {
     OpReturn,
     OpGetLocal,
     OpSetLocal,
+    OpGetBuiltin,
 }
 
 pub struct Definition {
@@ -156,6 +157,10 @@ impl Opcode {
                 name: "OpSetLocal",
                 operand_widths: vec![1]
             },
+            Opcode::OpGetBuiltin => Definition {
+                name: "OpGetBuiltin",
+                operand_widths: vec![1]
+            },
         }
     }
 }
@@ -170,7 +175,7 @@ impl TryFrom<u8> for Opcode {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpSetLocal as u8 {
+        if value >= Opcode::OpConstant as u8 && value <= Opcode::OpGetBuiltin as u8 {
             // Sadly, this is unsafe, but using a match would be verbose / slow
             return Ok(unsafe { std::mem::transmute(value) });
         } else {

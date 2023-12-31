@@ -8,6 +8,7 @@ type OuterSymbolTable = Rc<RefCell<SymbolTable>>;
 
 pub const GLOBAL_SCOPE: SymbolScope = "GLOBAL";
 pub const LOCAL_SCOPE: SymbolScope = "LOCAL";
+pub const BUILTIN_SCOPE: SymbolScope = "BUILTIN";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Symbol {
@@ -44,6 +45,16 @@ impl SymbolTable {
         };
         self.store.insert(name.to_string(), symbol.clone());
         self.num_definitions += 1;
+        return symbol;
+    }
+
+    pub fn define_builtin(&mut self, index: usize, name: &str) -> Symbol {
+        let symbol = Symbol {
+            name: name.to_string(),
+            scope: BUILTIN_SCOPE,
+            index,
+        };
+        self.store.insert(name.to_string(), symbol.clone());
         return symbol;
     }
 

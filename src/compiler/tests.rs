@@ -723,6 +723,38 @@ fn test_let_statement_scopes() {
     run_compiler_tests(tests);
 }
 
+#[test]
+fn test_builtins() {
+    let tests = vec![
+        make_test!(
+            "len([]); push([], 1);";
+            Object::Integer(1);
+            make!(OpGetBuiltin, [0]),
+            make!(OpArray, [0]),
+            make!(OpCall, [1]),
+            make!(OpPop),
+            make!(OpGetBuiltin, [5]),
+            make!(OpArray, [0]),
+            make!(OpConstant, [0]),
+            make!(OpCall, [2]),
+            make!(OpPop)
+        ),
+        make_test!(
+            "fn() { len([]) }";
+            make_compiled_function!(vec![
+                make!(OpGetBuiltin, [0]),
+                make!(OpArray, [0]),
+                make!(OpCall, [1]),
+                make!(OpReturnValue),
+            ]);
+            make!(OpConstant, [0]),
+            make!(OpPop)
+        ),
+    ];
+
+    run_compiler_tests(tests);
+}
+
 fn parse(input: String) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);

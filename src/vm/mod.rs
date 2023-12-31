@@ -97,21 +97,23 @@ impl VM {
 
     // Push an element onto the stack
     fn push(&mut self, obj: Object) -> Result<()> {
-        if self.sp >= STACK_SIZE {
-            return Err(anyhow!("stack overflow"));
+        if self.sp < STACK_SIZE {
+            self.stack[self.sp] = obj;
+            self.sp += 1;
+            Ok(())
+        } else {
+            Err(anyhow!("stack overflow"))
         }
-        self.stack[self.sp] = obj;
-        self.sp += 1;
-        Ok(())
     }
 
     // Pop an element from the stack
     fn pop(&mut self) -> Result<Object> {
-        if self.sp == 0 {
-            return Err(anyhow!("stack underflow"));
+        if self.sp != 0 {
+            self.sp -= 1;
+            Ok(self.stack[self.sp].clone())
+        } else {
+            Err(anyhow!("stack underflow"))
         }
-        self.sp -= 1;
-        Ok(self.stack[self.sp].clone())
     }
 
     // Get the last element popped from the stack
@@ -396,7 +398,7 @@ impl VM {
         let operand = self.pop()?;
         match operand {
             Object::Integer(value) => self.push(Object::Integer(-value)),
-            _ => Err(anyhow!("unsupported type for negation: {}", operand)),
+            _ => Err(anyhow!("unsupported type for negation: {}", operand.type_name())),
         }
     }
 

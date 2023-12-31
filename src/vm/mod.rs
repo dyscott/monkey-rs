@@ -202,6 +202,8 @@ impl VM {
                     let global_index = read_u16(&ins[ip + 1..ip + 3]) as usize;
                     ip += 2;
                     self.globals[global_index] = self.pop()?;
+
+                    self.stack[self.sp] = Object::Null;
                 }
                 Opcode::OpGetGlobal => {
                     let global_index = read_u16(&ins[ip + 1..ip + 3]) as usize;
@@ -264,6 +266,8 @@ impl VM {
                     let frame_base_pointer = self.current_frame().base_pointer;
 
                     self.stack[frame_base_pointer + local_index] = self.pop()?;
+                    
+                    self.stack[self.sp] = Object::Null;
                 }
                 Opcode::OpGetLocal => {
                     let local_index = ins[ip + 1] as usize;
